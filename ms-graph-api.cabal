@@ -25,9 +25,15 @@ library
                      , bytestring
                      , containers
                      , hoauth2
+                     , http-conduit
+                     , http-types
                      , req
+                     , scotty
                      , text
+                     , transformers >= 0.5
                      , uri-bytestring
+                     , wai
+                     , warp
   ghc-options:         -Wall
                        -Wcompat
 
