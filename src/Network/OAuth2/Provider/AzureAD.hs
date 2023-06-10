@@ -84,7 +84,7 @@ data AzureADUser = AzureADUser
   , givenName :: Text
   , name :: Text
   }
-  deriving (Show, Generic)
+  deriving (Eq, Ord, Show, Generic)
 
 instance FromJSON AzureADUser where
   parseJSON = genericParseJSON defaultOptions {fieldLabelModifier = camelTo2 '_'}
