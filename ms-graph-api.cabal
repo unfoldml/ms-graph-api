@@ -20,6 +20,7 @@ library
   hs-source-dirs:      src
   exposed-modules:     MSGraphAPI.Auth
                        Network.OAuth2.Provider.AzureAD
+                       Network.OAuth2.Session
   build-depends:       base >= 4.7 && < 5
                      , aeson
                      , bytestring
@@ -27,8 +28,10 @@ library
                      , hoauth2
                      , http-conduit
                      , http-types
+                     , little-rio
                      , req
                      , scotty
+                     , stm
                      , text
                      , transformers >= 0.5
                      , uri-bytestring
