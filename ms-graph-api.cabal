@@ -28,6 +28,7 @@ library
                      , containers
                      , heaps
                      , hoauth2
+                     , http-client
                      , http-conduit
                      , http-types
                      , jwt

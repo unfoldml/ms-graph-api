@@ -7,7 +7,7 @@
 module Network.OAuth2.Provider.AzureAD where
 
 -- import Data.String (IsString(..))
-import GHC.Generics
+-- import GHC.Generics
 
 -- aeson
 import Data.Aeson
@@ -18,7 +18,8 @@ import qualified Data.Set as Set
 import Network.OAuth.OAuth2 -- (authGetJSON, ClientSecretBasic)
 import Network.OAuth2.Experiment (IdpApplication(..), Idp(..), IdpUserInfo, GrantTypeFlow(..), ClientId(..), ClientSecret, Scope, AuthorizeState)
 -- text
-import Data.Text.Lazy (Text)
+import qualified Data.Text as T (Text)
+import qualified Data.Text.Lazy as TL (Text)
 -- uri-bytestring
 import URI.ByteString (URI)
 import URI.ByteString.QQ (uri)
@@ -29,7 +30,7 @@ data AzureAD = AzureAD deriving (Eq, Show)
 type instance IdpUserInfo AzureAD = AzureADUser
 
 data OAuthCfg = OAuthCfg {
-  oacAppName :: Text -- ^ application name
+  oacAppName :: TL.Text -- ^ application name
   , oacClientId :: ClientId -- ^ app client ID : see https://stackoverflow.com/a/70670961
   , oacClientSecret :: ClientSecret -- ^ app client secret "
   , oacScopes :: [Scope]  -- ^ OAuth2 and OIDC scopes
@@ -37,13 +38,14 @@ data OAuthCfg = OAuthCfg {
   , oacRedirectURI :: URI -- ^ OAuth2 redirect URI
                          }
 
+-- | NB : at minimum, OIDC scopes @openid@ and @offline_access@ are always requested since code inside assumes we have access to refresh tokens and ID tokens
 azureADApp :: OAuthCfg
            -> IdpApplication 'AuthorizationCode AzureAD
 azureADApp (OAuthCfg appname clid sec scopes authstate reduri) = defaultAzureADApp{
   idpAppName = appname
   , idpAppClientId = clid
   , idpAppClientSecret = sec
-  , idpAppScope = Set.fromList scopes
+  , idpAppScope = Set.fromList (scopes <> ["openid", "offline_access"])
   , idpAppAuthorizeState = authstate
   , idpAppRedirectUri = reduri
   }
@@ -57,7 +59,7 @@ defaultAzureADApp =
   AuthorizationCodeIdpApplication
     { idpAppClientId = ""
     , idpAppClientSecret = ""
-    , idpAppScope = Set.fromList ["openid", "profile", "email"]
+    , idpAppScope = Set.fromList ["openid", "offline_access", "profile", "email"] -- https://learn.microsoft.com/EN-US/azure/active-directory/develop/scopes-oidc#openid-connect-scopes
     , idpAppAuthorizeState = "CHANGE_ME" -- https://stackoverflow.com/questions/26132066/what-is-the-purpose-of-the-state-parameter-in-oauth-authorization-request
     , idpAppAuthorizeExtraParams = Map.empty
     , idpAppRedirectUri = [uri|http://localhost|] --
@@ -78,14 +80,21 @@ defaultAzureADIdp =
 
 -- | https://learn.microsoft.com/en-us/azure/active-directory/develop/userinfo
 data AzureADUser = AzureADUser
-  { sub :: Text
-  , email :: Text
-  , familyName :: Text
-  , givenName :: Text
-  , name :: Text
+  { sub :: T.Text
+  , email :: Maybe T.Text -- requires the “email” OIDC scope.
+  , familyName :: Maybe T.Text -- all names require the “profile” OIDC scope.
+  , givenName :: Maybe T.Text
+  , name :: Maybe T.Text
   }
-  deriving (Eq, Ord, Show, Generic)
+  deriving (Eq, Ord, Show)
 
 instance FromJSON AzureADUser where
-  parseJSON = genericParseJSON defaultOptions {fieldLabelModifier = camelTo2 '_'}
+  parseJSON = withObject "AzureADUser" $ \o -> AzureADUser <$>
+    o .: "sub" <*>
+    o .:? "email" <*>
+    o .:? "family_name" <*>
+    o .:? "given_name" <*>
+    o .:? "name"
+
+--   parseJSON = genericParseJSON defaultOptions {fieldLabelModifier = camelTo2 '_'}
 

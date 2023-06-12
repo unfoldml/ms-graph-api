@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor #-}
+{-# Language DeriveFunctor #-}
 {-# language DeriveGeneric #-}
 {-# language DerivingStrategies #-}
 {-# language GeneralizedNewtypeDeriving #-}
@@ -10,6 +10,7 @@ import Control.Monad.IO.Class (MonadIO(..))
 import qualified Data.List.NonEmpty as NE (NonEmpty(..))
 import GHC.Exception (Exception(..))
 import GHC.Generics (Generic)
+import Data.Maybe (fromMaybe)
 import Data.String (IsString(..))
 import Data.Typeable
 
@@ -26,7 +27,7 @@ import Data.Scientific (coefficient)
 -- text
 import qualified Data.Text as T (Text, unpack)
 -- time
-import Data.Time (UTCTime(..), getCurrentTime, fromGregorian, addUTCTime, diffUTCTime)
+import Data.Time (UTCTime(..), NominalDiffTime, getCurrentTime, fromGregorian, addUTCTime, diffUTCTime)
 -- validation-selective
 import Validation (Validation(..), failure, validationToEither, maybeToSuccess)
 
@@ -41,8 +42,11 @@ newtype UserEmail = UserEmail { userEmail :: T.Text }
   deriving newtype (Show, A.ToJSON, A.FromJSON, A.ToJSONKey, A.FromJSONKey)
 
 -- | intended audience of the token (== API key ID )
-newtype ApiAudience = ApiAudience T.Text deriving (Eq, Ord, Show, Generic, Typeable, IsString)
+newtype ApiAudience = ApiAudience { apiAudience :: T.Text } deriving (Eq, Ord, Show, Generic, Typeable, IsString)
 instance A.ToJSON ApiAudience
+
+jwtClaims :: T.Text -> Maybe J.JWTClaimsSet
+jwtClaims t = J.claims <$> J.decode t
 
 -- | decoded claims from the JWT token, valid (at least) for the Google OpenID implementation as of February 2021
 --
@@ -56,54 +60,79 @@ data JWTClaims =
   , jcEmail :: UserEmail
             } deriving (Eq, Show)
 
--- | Decode and validate the JWT
+decValidSub :: J.JWTClaimsSet -> Validation (NE.NonEmpty AuthException) UserSub
+decValidSub jc = decSub (J.sub jc)
+
+decValidExp :: Maybe NominalDiffTime
+            -> UTCTime
+            -> J.JWTClaimsSet
+            -> Validation (NE.NonEmpty AuthException) UTCTime
+decValidExp nsecs t jc = decExp (J.exp jc) `bindValidation` validateExp nsecs t
+
+decValidNbf :: UTCTime -> J.JWTClaimsSet -> Validation (NE.NonEmpty AuthException) UTCTime
+decValidNbf t jc = decNbf (J.nbf jc) `bindValidation` validateNbf t
+
+decValidEmail :: J.JWTClaimsSet -> Validation (NE.NonEmpty AuthException) UserEmail
+decValidEmail jc = decEmail (J.unClaimsMap $ J.unregisteredClaims jc)
+
+decValidAud :: ApiAudience -> J.JWTClaimsSet -> Validation (NE.NonEmpty AuthException) T.Text
+decValidAud a jc = decAud (J.aud jc) `bindValidation` validateAud a
+
+-- | NB Validation is not a monad though
+bindValidation :: Validation e a -> (a -> Validation e b) -> Validation e b
+bindValidation v f = case v of
+  Failure e -> Failure e
+  Success a -> f a
+
+
+-- | Decode and validate the 'aud', 'exp' and 'nbf' fields of the JWT
 decodeValidateJWT :: MonadIO f =>
                      ApiAudience -- ^ intended token audience (its meaning depends on the OAuth identity provider )
+                  -> Maybe NominalDiffTime -- ^ buffer period to allow for API roundtrip delays (defaults to 0 if Nothing)
                   -> T.Text -- ^ JWT-encoded string, e.g. the contents of the id_token field
                   -> f (Either (NE.NonEmpty AuthException) JWTClaims)
-decodeValidateJWT iaud jstr = case validationToEither $ decodeJWT jstr of
-  Right jwc -> validationToEither <$> validateJWT iaud jwc
+decodeValidateJWT iaud nsecs jstr = case validationToEither $ decodeJWT jstr of
+  Right jwc -> validationToEither <$> validateJWT iaud nsecs jwc
   Left e -> pure $ Left e
 
 
+-- | Validate the 'aud', 'exp' and 'nbf' fields
 validateJWT :: MonadIO m =>
                ApiAudience -- ^ intended token audience (its meaning depends on the OAuth identity provider )
+            -> Maybe NominalDiffTime
             -> JWTClaims
             -> m (Validation (NE.NonEmpty AuthException) JWTClaims)
-validateJWT a j = do
-  vexp <- validateExp (jcExp j)
-  vnbf <- validateNbf (jcNbf j)
+validateJWT a nsecs j = do
+  t <- liftIO getCurrentTime
   pure (
     JWTClaims <$>
       validateAud a (jcAud j) <*>
-      vexp <*>
+      validateExp nsecs t (jcExp j) <*>
       pure (jcIat j) <*>
-      vnbf <*>
+      validateNbf t (jcNbf j) <*>
       pure (jcSub j) <*>
       pure (jcEmail j)
        )
 
--- | Fails if the 'exp'iry field is not at least 60 seconds in the future
-validateExp :: MonadIO m =>
-               UTCTime -> m (Validation (NE.NonEmpty AuthException) UTCTime)
-validateExp texp = do
-  t <- liftIO getCurrentTime
-  if addUTCTime 60 texp > t then
-    pure $ Success texp
-    else pure $ failure (AEExpiredToken texp)
+-- | Fails if the 'exp'iry field is not at least 'nsecs' seconds in the future
+validateExp :: Maybe NominalDiffTime -- ^ defaults to 0 if Nothing
+            -> UTCTime -> UTCTime -> Validation (NE.NonEmpty AuthException) UTCTime
+validateExp nsecs t texp = do
+  if fromMaybe 0 nsecs `addUTCTime` texp > t then
+    Success texp
+    else failure (AEExpiredToken texp)
+
 
 -- | Fails if the current time is before the 'nbf' time (= token is not yet valid)
-validateNbf :: MonadIO m =>
-               UTCTime -> m (Validation (NE.NonEmpty AuthException) UTCTime)
-validateNbf tnbf = do
-  t <- liftIO getCurrentTime
+validateNbf :: UTCTime -> UTCTime -> Validation (NE.NonEmpty AuthException) UTCTime
+validateNbf t tnbf = do
   if t `diffUTCTime` tnbf > 0 then
-    pure $ Success tnbf
-    else pure $ failure (AENotYetValid tnbf)
+    Success tnbf
+    else failure (AENotYetValid tnbf)
 
 -- | Fails if the 'aud'ience field is not equal to the supplied ApiAudience
 validateAud :: ApiAudience -- ^ intended audience of the token (== API key ID )
-            -> T.Text
+            -> T.Text -- ^ decoded from the JWT
             -> Validation (NE.NonEmpty AuthException) T.Text
 validateAud aa@(ApiAudience a) audt
   | a == audt = Success audt
