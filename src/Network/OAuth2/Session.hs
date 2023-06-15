@@ -165,7 +165,9 @@ refreshLoop ts idpApp mgr uid oaToken = forkFinally (act oaToken) cleanup
         dtSecs = (round ein - 30) -- 30 seconds before expiry
       threadDelay (dtSecs * 1000000) -- pause thread
       case refreshToken oat of
-        Nothing -> pure $ Left (T.pack $ unwords ["No refresh token"]) -- TODO no refresh token
+        Nothing -> do
+          expireUser ts uid -- cannot refresh, remove user from memory
+          pure $ Left (T.pack $ unwords ["Refresh token not found in OAT"]) -- TODO no refresh token
         Just rtoken -> do
           eo' <- runExceptT $ do
             withExceptT oauth2ErrorToText (conduitRefreshTokenRequest idpApp mgr rtoken) -- get a new OAuth2 token
@@ -193,6 +195,10 @@ updateToken ts uid oat = do
       h' = H.insert hentry (thRefreshHeap thp)
     writeTVar ts (TokensData h' m')
     pure ein
+
+expireUser :: (MonadIO m, Ord uid) => Tokens uid t -> uid -> m ()
+expireUser ts uid =
+  atomically $ modifyTVar ts $ \td -> td{ thUsersMap = M.alter (const Nothing) uid (thUsersMap td)}
 
 lookupUser :: (MonadIO m, Ord uid) =>
               Tokens uid t
