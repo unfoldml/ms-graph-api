@@ -124,6 +124,12 @@ loginH oacfg = do
 
 --
 
+oauth2ErrorToText :: Show a => a -> T.Text
+oauth2ErrorToText e = T.pack $ "Unable to fetch access token. Details : " ++ show e
+
+bslToText :: BSL.ByteString -> T.Text
+bslToText = T.pack . BSL.unpack
+
 
 -- | 1) the ExchangeToken arrives with the redirect once the user has approved the scopes in the browser
 -- https://learn.microsoft.com/en-us/graph/auth-v2-user?view=graph-rest-1.0&tabs=http#authorization-response
@@ -131,7 +137,7 @@ fetchUpdateToken :: Tokens UserSub OAuth2Token
                  -> IdpApplication 'AuthorizationCode AzureAD
                  -> Manager
                  -> ExchangeToken -- ^ also called 'code'. Expires in 10 minutes
-                 -> IO (Either T.Text (OAuth2Token, NominalDiffTime))
+                 -> IO (Either T.Text OAuth2Token)
 fetchUpdateToken ts idpApp mgr etoken = do
   tokenResp <- runExceptT $ do
     withExceptT oauth2ErrorToText (conduitTokenRequest idpApp mgr etoken) -- OAuth2 token
@@ -139,49 +145,41 @@ fetchUpdateToken ts idpApp mgr etoken = do
     Right oat -> case idToken oat of
       Nothing -> pure $ Left "cannot find ID token in OAuth token. Ensure 'openid' scope appears in token request"
       Just idt -> do
-        idtClaimsE <- decValidIdToken idt
+        idtClaimsE <- decValidIdToken idt -- decode and validate ID token
         case idtClaimsE of
-          -- Right usub -> do
-          --   ein <- updateToken ts usub oat -- 2) FIXME here we should also fork a thread and start refresh timer
-          --   pure $ Right (oat, ein)
+          Right uid -> do
+            _ <- refreshLoop ts idpApp mgr uid oat -- fork a thread and start refresh loop for this user
+            pure $ Right oat
           Left e -> pure $ Left $ T.pack (show e) -- ^ id token validation failed
     Left e -> pure $ Left e
 
-oauth2ErrorToText :: Show a => a -> T.Text
-oauth2ErrorToText e = T.pack $ "Unable to fetch access token. Details : " ++ show e
+refreshLoop ts idpApp mgr uid oaToken = forkFinally (act oaToken) cleanup
+  where
+    cleanup =
+      undefined -- TODO
+    -- cleanup = \case
+    --   Right
+    act oat = do
+      ein <- updateToken ts uid oat -- replace new token in memory
+      let
+        dtSecs = (round ein - 30) -- 30 seconds before expiry
+      threadDelay (dtSecs * 1000000) -- pause thread
+      case refreshToken oat of
+        Nothing -> pure $ Left (T.pack $ unwords ["No refresh token"]) -- TODO no refresh token
+        Just rtoken -> do
+          eo' <- runExceptT $ do
+            withExceptT oauth2ErrorToText (conduitRefreshTokenRequest idpApp mgr rtoken) -- get a new OAuth2 token
+          case eo' of
+            Right oat' -> do
+              act oat' -- loop
+            Left e -> pure $ Left e -- TODO
 
-bslToText :: BSL.ByteString -> T.Text
-bslToText = T.pack . BSL.unpack
-
--- scheduleRefresh ts idpApp mgr etoken = forkFinally act cleanup
---   where
---     cleanup = undefined -- FIXME
---     act = do
---       einm <- fetchUpdateToken ts idpApp mgr etoken
---       case einm of
---         Right (oat, ein) -> do
---           let
---             dtSecs = (round ein - 10) -- 10 seconds before expiry
---           threadDelay (dtSecs * 1000000) -- pause thread
---           -- case refreshToken oat of
---           --   Just rt -> 
-
-type Tokens uid t = TVar (TokensHeap uid t)
-data TokensHeap uid t = TokensHeap {
-  thRefreshHeap :: H.Heap (H.Entry UTCTime t)
-  , thUsersMap :: M.Map uid t
-                             }
-
-lookupUser :: (MonadIO m, Ord uid) =>
-              Tokens uid t
-           -> uid -- ^ user identifier e.g. 'sub'
-           -> m (Maybe t)
-lookupUser ts uid = atomically $ do
-  thp <- readTVar ts
-  pure $ M.lookup uid (thUsersMap thp)
 
 updateToken :: (MonadIO m, Ord uid) =>
-               Tokens uid OAuth2Token -> uid -> OAuth2Token -> m NominalDiffTime
+               Tokens uid OAuth2Token
+            -> uid -- ^ user id
+            -> OAuth2Token -- ^ new token
+            -> m NominalDiffTime -- ^ token expires in
 updateToken ts uid oat = do
   t0 <- liftIO getCurrentTime
   let
@@ -193,8 +191,26 @@ updateToken ts uid oat = do
     let
       m' = M.insert uid oat (thUsersMap thp)
       h' = H.insert hentry (thRefreshHeap thp)
-    writeTVar ts (TokensHeap h' m')
+    writeTVar ts (TokensData h' m')
     pure ein
+
+lookupUser :: (MonadIO m, Ord uid) =>
+              Tokens uid t
+           -> uid -- ^ user identifier e.g. 'sub'
+           -> m (Maybe t)
+lookupUser ts uid = atomically $ do
+  thp <- readTVar ts
+  pure $ M.lookup uid (thUsersMap thp)
+
+type Tokens uid t = TVar (TokensData uid t)
+data TokensData uid t = TokensData {
+  thRefreshHeap :: H.Heap (H.Entry UTCTime t)
+  , thUsersMap :: M.Map uid t
+                             }
+
+
+
+
 
 
 -- | Decode and validate ID token
