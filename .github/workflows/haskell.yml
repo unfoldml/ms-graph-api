@@ -31,7 +31,7 @@ jobs:
           stack-version: 'latest'
       - name: Stack build and test
         run: |
-          stack build
+          stack build --system-ghc --no-install-ghc
           stack test
 
   # ci:
