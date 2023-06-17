@@ -3,7 +3,20 @@
 {-# language DeriveGeneric, GeneralizedNewtypeDeriving, DerivingStrategies, DeriveDataTypeable  #-}
 {-# language OverloadedStrings #-}
 {-# options_ghc -Wno-unused-imports #-}
-module Network.OAuth2.Session where
+module Network.OAuth2.Session (
+  -- * Azure App Service
+  aadHeaderIdToken
+  -- * OAuth2
+  , loginEndpoint
+  , replyEndpoint
+  -- * In-memory user session
+  , Tokens
+  , lookupUser
+  , expireUser
+  -- * Scotty misc
+  , Scotty
+  , Action
+                              ) where
 
 import Control.Exception (Exception(..), SomeException(..))
 import Control.Monad.IO.Class (MonadIO(..))
@@ -36,9 +49,6 @@ import Network.HTTP.Types (status302, status400, status401)
 -- scotty
 import Web.Scotty (scotty, RoutePattern)
 import Web.Scotty.Trans (scottyT, ActionT, ScottyT, get, raise, params, header, setHeader, status, text)
--- stm
--- import Control.Monad.STM (STM)
--- import Control.Concurrent.STM.TVar (TVar)
 -- text
 import qualified Data.Text as T (Text, pack, unwords)
 import qualified Data.Text.Lazy as TL (Text, pack, unpack, toStrict, takeWhile, fromStrict)
@@ -65,7 +75,7 @@ type Scotty = ScottyT TL.Text
 
 -- * Azure App service adds headers into each request, which the backend can access to identify the user
 
--- | The JWT identity token extracted from the headers injected by App Service can be decoded for its claims e.g. 'sub' (which is unique for each user for a given app)
+-- | The JWT identity token extracted from the headers injected by App Service can be decoded for its claims e.g. @sub@ (which is unique for each user for a given app)
 --
 -- https://bogdan.bynapse.com/azure/the-app-service-token-store-was-added-to-app-service-authentication-authorization-and-it-is-a-repository-of-oauth-tokens-associated-with-your-app-users-when-a-user-logs-into-your-app-via-an-iden/
 aadHeaderIdToken :: (MonadIO m) =>
@@ -95,10 +105,10 @@ aadHeaderIdToken act = do
 
 -- | Login endpoint
 loginEndpoint :: (MonadIO m) =>
-                 RoutePattern -- ^ e.g. "/login"
-              -> IdpApplication 'AuthorizationCode AzureAD
+                 IdpApplication 'AuthorizationCode AzureAD
+              -> RoutePattern -- ^ e.g. @"/login"@
               -> Scotty m ()
-loginEndpoint path idpApp = get path (loginH idpApp)
+loginEndpoint idpApp path = get path (loginH idpApp)
 
 -- | login endpoint handler
 loginH :: Monad m =>
@@ -113,7 +123,7 @@ replyEndpoint :: MonadIO m =>
                  IdpApplication 'AuthorizationCode AzureAD
               -> Tokens UserSub OAuth2Token
               -> Manager
-              -> RoutePattern -- ^ e.g. "/oauth/reply"
+              -> RoutePattern -- ^ e.g. @"/oauth/reply"@
               -> Scotty m ()
 replyEndpoint idpApp ts mgr path =
   get path (replyH idpApp ts mgr)
@@ -136,8 +146,8 @@ replyH idpApp ts mgr = do
 
 --
 
-oauth2ErrorToText :: Show a => a -> T.Text
-oauth2ErrorToText e = T.pack $ "Unable to fetch access token. Details : " ++ show e
+-- oauth2ErrorToText :: Show a => a -> T.Text
+-- oauth2ErrorToText e = T.pack $ "Unable to fetch access token. Details : " ++ show e
 
 -- bslToText :: BSL.ByteString -> T.Text
 -- bslToText = T.pack . BSL.unpack
@@ -225,13 +235,16 @@ updateToken ts uid oat = do
     writeTVar ts (TokensData m')
     pure ein
 
-expireUser :: (MonadIO m, Ord uid) => Tokens uid t -> uid -> m ()
+expireUser :: (MonadIO m, Ord uid) =>
+              Tokens uid t
+           -> uid -- ^ user identifier e.g. @sub@
+           -> m ()
 expireUser ts uid =
   atomically $ modifyTVar ts $ \td -> td{ thUsersMap = M.alter (const Nothing) uid (thUsersMap td)}
 
 lookupUser :: (MonadIO m, Ord uid) =>
               Tokens uid t
-           -> uid -- ^ user identifier e.g. 'sub'
+           -> uid -- ^ user identifier e.g. @sub@
            -> m (Maybe t)
 lookupUser ts uid = atomically $ do
   thp <- readTVar ts
@@ -247,7 +260,7 @@ data TokensData uid t = TokensData {
 -- | Decode and validate ID token
 -- https://learn.microsoft.com/en-us/azure/active-directory/develop/userinfo#consider-using-an-id-token-instead
 decValidIdToken :: MonadIO m =>
-                   IdToken -- ^ appears in the OAuth2Token if scopes include 'openid'
+                   IdToken -- ^ appears in the OAuth2Token if scopes include @openid@
                 -> m (Either (NonEmpty JWTException) UserSub) -- ^ (sub)
 decValidIdToken (IdToken idt) = do
   t <- liftIO getCurrentTime
@@ -272,13 +285,13 @@ excepttToActionM e = do
 
 -- playground
 
-atomicallyWithAfter :: MonadUnliftIO m =>
-                       TVar a
-                    -> Int -- ^ delay in microseconds (see 'threadDelay')
-                    -> (a -> a)
-                    -> m ThreadId
-atomicallyWithAfter tv dt f = forkFinally act (\_ -> pure ())
-  where
-    act = do
-      threadDelay dt
-      atomically $ modifyTVar tv f
+-- atomicallyWithAfter :: MonadUnliftIO m =>
+--                        TVar a
+--                     -> Int -- ^ delay in microseconds (see 'threadDelay')
+--                     -> (a -> a)
+--                     -> m ThreadId
+-- atomicallyWithAfter tv dt f = forkFinally act (\_ -> pure ())
+--   where
+--     act = do
+--       threadDelay dt
+--       atomically $ modifyTVar tv f
