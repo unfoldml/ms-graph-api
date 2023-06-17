@@ -4,6 +4,9 @@ Haskell client bindings to the [Microsoft Graph API v1.0](https://learn.microsof
     
 [![Hackage](https://img.shields.io/hackage/v/ms-graph-api?style=for-the-badge)](https://hackage.haskell.org/package/ms-graph-api)
 
+![main](https://github.com/unfoldml/ms-graph-api/actions/workflows/haskell.yml/badge.svg?branch=main)
+
+
 ## Description
 
 This library provides both the client interface and authorization infrastructure to integrate with Microsoft infrastructure, e.g. using ActiveDirectory as an OAuth2 identity provider.
