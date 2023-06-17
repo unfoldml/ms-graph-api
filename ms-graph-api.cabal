@@ -1,5 +1,5 @@
 name:                ms-graph-api
-version:             0.2.0.0
+version:             0.3.0.0
 synopsis:            Microsoft Graph API
 description:         Bindings to the Microsoft Graph API
 homepage:            https://github.com/unfoldml/ms-graph-api
@@ -32,7 +32,7 @@ library
                      , aeson
                      , bytestring
                      , containers
-                     , hoauth2
+                     , hoauth2 >= 2.6.0
                      , http-client
                      , http-conduit
                      , http-types
@@ -44,7 +44,7 @@ library
                      , scotty
                      , stm
                      , text
-                     , time
+                     , time >= 1.8
                      , transformers >= 0.5
                      , unliftio
                      , uri-bytestring
