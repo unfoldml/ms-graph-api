@@ -10,7 +10,7 @@ defaults: { run: { shell: bash } }
 
 jobs:
   build:
-    name: GHC ${{ matrix.ghc-version }} on ${{ matrix.os }}
+    name: stackage ${{ matrix.stack-resolver }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -25,7 +25,7 @@ jobs:
         run: |
           stack build --resolver ${{ matrix.stack-resolver }}
           stack test
-          
+
       # - name: Setup Haskell tools
       #   uses: haskell/actions/setup@v2
       #   with:
