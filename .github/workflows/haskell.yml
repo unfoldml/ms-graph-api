@@ -26,8 +26,7 @@ jobs:
           ghc-version: ${{ matrix.ghc-version }}
           # cabal-version: 'latest'. Omitted, but defaults to 'latest'
           enable-stack: true
-          stack-no-global: true
-          stack-setup-ghc: true
+          stack-setup-ghc: false
           stack-version: 'latest'
       - name: Stack build and test
         run: |
