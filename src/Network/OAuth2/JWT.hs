@@ -60,22 +60,22 @@ data JWTClaims =
   , jcEmail :: UserEmail
             } deriving (Eq, Show)
 
-decValidSub :: J.JWTClaimsSet -> Validation (NE.NonEmpty AuthException) UserSub
+decValidSub :: J.JWTClaimsSet -> Validation (NE.NonEmpty JWTException) UserSub
 decValidSub jc = decSub (J.sub jc)
 
 decValidExp :: Maybe NominalDiffTime
             -> UTCTime
             -> J.JWTClaimsSet
-            -> Validation (NE.NonEmpty AuthException) UTCTime
+            -> Validation (NE.NonEmpty JWTException) UTCTime
 decValidExp nsecs t jc = decExp (J.exp jc) `bindValidation` validateExp nsecs t
 
-decValidNbf :: UTCTime -> J.JWTClaimsSet -> Validation (NE.NonEmpty AuthException) UTCTime
+decValidNbf :: UTCTime -> J.JWTClaimsSet -> Validation (NE.NonEmpty JWTException) UTCTime
 decValidNbf t jc = decNbf (J.nbf jc) `bindValidation` validateNbf t
 
-decValidEmail :: J.JWTClaimsSet -> Validation (NE.NonEmpty AuthException) UserEmail
+decValidEmail :: J.JWTClaimsSet -> Validation (NE.NonEmpty JWTException) UserEmail
 decValidEmail jc = decEmail (J.unClaimsMap $ J.unregisteredClaims jc)
 
-decValidAud :: ApiAudience -> J.JWTClaimsSet -> Validation (NE.NonEmpty AuthException) T.Text
+decValidAud :: ApiAudience -> J.JWTClaimsSet -> Validation (NE.NonEmpty JWTException) T.Text
 decValidAud a jc = decAud (J.aud jc) `bindValidation` validateAud a
 
 -- | NB Validation is not a monad though
@@ -90,7 +90,7 @@ decodeValidateJWT :: MonadIO f =>
                      ApiAudience -- ^ intended token audience (its meaning depends on the OAuth identity provider )
                   -> Maybe NominalDiffTime -- ^ buffer period to allow for API roundtrip delays (defaults to 0 if Nothing)
                   -> T.Text -- ^ JWT-encoded string, e.g. the contents of the id_token field
-                  -> f (Either (NE.NonEmpty AuthException) JWTClaims)
+                  -> f (Either (NE.NonEmpty JWTException) JWTClaims)
 decodeValidateJWT iaud nsecs jstr = case validationToEither $ decodeJWT jstr of
   Right jwc -> validationToEither <$> validateJWT iaud nsecs jwc
   Left e -> pure $ Left e
@@ -101,7 +101,7 @@ validateJWT :: MonadIO m =>
                ApiAudience -- ^ intended token audience (its meaning depends on the OAuth identity provider )
             -> Maybe NominalDiffTime
             -> JWTClaims
-            -> m (Validation (NE.NonEmpty AuthException) JWTClaims)
+            -> m (Validation (NE.NonEmpty JWTException) JWTClaims)
 validateJWT a nsecs j = do
   t <- liftIO getCurrentTime
   pure (
@@ -116,32 +116,32 @@ validateJWT a nsecs j = do
 
 -- | Fails if the 'exp'iry field is not at least 'nsecs' seconds in the future
 validateExp :: Maybe NominalDiffTime -- ^ defaults to 0 if Nothing
-            -> UTCTime -> UTCTime -> Validation (NE.NonEmpty AuthException) UTCTime
+            -> UTCTime -> UTCTime -> Validation (NE.NonEmpty JWTException) UTCTime
 validateExp nsecs t texp = do
   if fromMaybe 0 nsecs `addUTCTime` texp > t then
     Success texp
-    else failure (AEExpiredToken texp)
+    else failure (JEExpiredToken texp)
 
 
 -- | Fails if the current time is before the 'nbf' time (= token is not yet valid)
-validateNbf :: UTCTime -> UTCTime -> Validation (NE.NonEmpty AuthException) UTCTime
+validateNbf :: UTCTime -> UTCTime -> Validation (NE.NonEmpty JWTException) UTCTime
 validateNbf t tnbf = do
   if t `diffUTCTime` tnbf > 0 then
     Success tnbf
-    else failure (AENotYetValid tnbf)
+    else failure (JENotYetValid tnbf)
 
 -- | Fails if the 'aud'ience field is not equal to the supplied ApiAudience
 validateAud :: ApiAudience -- ^ intended audience of the token (== API key ID )
             -> T.Text -- ^ decoded from the JWT
-            -> Validation (NE.NonEmpty AuthException) T.Text
+            -> Validation (NE.NonEmpty JWTException) T.Text
 validateAud aa@(ApiAudience a) audt
   | a == audt = Success audt
-  | otherwise = failure $ AEAudienceNotFound aa
+  | otherwise = failure $ JEAudienceNotFound aa
 
 decodeJWT :: T.Text
-          -> Validation (NE.NonEmpty AuthException) JWTClaims
+          -> Validation (NE.NonEmpty JWTException) JWTClaims
 decodeJWT jwts = case J.claims <$> J.decode jwts of
-  Nothing -> failure $ AEMalformedJWT jwts
+  Nothing -> failure $ JEMalformedJWT jwts
   Just (J.JWTClaimsSet _ subm audm expm nbfm iatm _ (J.ClaimsMap cms)) ->
     JWTClaims <$>
       decAud audm <*>
@@ -152,51 +152,51 @@ decodeJWT jwts = case J.claims <$> J.decode jwts of
       decEmail cms
 
 decAud :: Maybe (Either J.StringOrURI [J.StringOrURI])
-       -> Validation (NE.NonEmpty AuthException) T.Text
+       -> Validation (NE.NonEmpty JWTException) T.Text
 decAud aam = claimNotFound "aud" (fromAud aam)
 
-decExp :: Maybe J.NumericDate -> Validation (NE.NonEmpty AuthException) UTCTime
+decExp :: Maybe J.NumericDate -> Validation (NE.NonEmpty JWTException) UTCTime
 decExp em = claimNotFound "exp" (fromNumericDate em)
 
-decIat :: Maybe J.NumericDate -> Validation (NE.NonEmpty AuthException) UTCTime
+decIat :: Maybe J.NumericDate -> Validation (NE.NonEmpty JWTException) UTCTime
 decIat im = claimNotFound "iat" (fromNumericDate im)
 
 decNbf :: Maybe J.NumericDate
-       -> Validation (NE.NonEmpty AuthException) UTCTime
+       -> Validation (NE.NonEmpty JWTException) UTCTime
 decNbf im = claimNotFound "nbf" (fromNumericDate im)
 
 decSub :: A.ToJSON a =>
-          Maybe a -> Validation (NE.NonEmpty AuthException) UserSub
+          Maybe a -> Validation (NE.NonEmpty JWTException) UserSub
 decSub sm = claimNotFound "sub" (UserSub <$> fromStringOrUri sm)
 
 decEmail :: (Ord k, IsString k) =>
-            M.Map k A.Value -> Validation (NE.NonEmpty AuthException) UserEmail
+            M.Map k A.Value -> Validation (NE.NonEmpty JWTException) UserEmail
 decEmail cms = claimNotFound "email" (case M.lookup "email" cms of
                                            Just (A.String ems) -> Just $ UserEmail ems
                                            _ -> Nothing)
 
-claimNotFound :: String -> Maybe a -> Validation (NE.NonEmpty AuthException) a
-claimNotFound c = maybeToSuccess (AEClaimNotFound c NE.:| [])
+claimNotFound :: String -> Maybe a -> Validation (NE.NonEmpty JWTException) a
+claimNotFound c = maybeToSuccess (JEClaimNotFound c NE.:| [])
 
 -- | Possible exception states of authentication request
-data AuthException = AEMalformedJWT T.Text
-                   | AEClaimNotFound String
-                   | AEAudienceNotFound ApiAudience
-                   | AEExpiredToken UTCTime
-                   | AENotYetValid UTCTime
-                   | AENoToken
+data JWTException = JEMalformedJWT T.Text
+                   | JEClaimNotFound String
+                   | JEAudienceNotFound ApiAudience
+                   | JEExpiredToken UTCTime
+                   | JENotYetValid UTCTime
+                   | JENoToken
                    deriving (Eq, Ord, Generic, Typeable)
 
-instance Show AuthException where
+instance Show JWTException where
   show = \case
-    AEMalformedJWT jt -> unwords ["Cannot decode JWT token :", T.unpack jt]
-    AEClaimNotFound c -> unwords ["JWT claim not found :", c]
-    AEAudienceNotFound a -> unwords ["audience", show a, "not found"]
-    AEExpiredToken t -> unwords ["JWT token expired on", show t]
-    AENotYetValid t -> unwords ["JWT token not yet valid:", show t]
-    AENoToken -> "No token found"
-instance Exception AuthException
-instance A.ToJSON AuthException
+    JEMalformedJWT jt -> unwords ["Cannot decode JWT token :", T.unpack jt]
+    JEClaimNotFound c -> unwords ["JWT claim not found :", c]
+    JEAudienceNotFound a -> unwords ["audience", show a, "not found"]
+    JEExpiredToken t -> unwords ["JWT token expired on", show t]
+    JENotYetValid t -> unwords ["JWT token not yet valid:", show t]
+    JENoToken -> "No token found"
+instance Exception JWTException
+instance A.ToJSON JWTException
 
 fromAud :: Maybe (Either J.StringOrURI [J.StringOrURI]) -> Maybe T.Text
 fromAud mm = maybe Nothing f mm
