@@ -36,11 +36,11 @@ packages:
 # forks / in-progress versions pinned to a git hash. For extra:
 #
 extra-deps:
-# - hoauth2-2.6.0
+- hoauth2-2.6.0
 - validation-selective-0.2.0.0
 - selective-0.6
 
-allow-newer: true
+# allow-newer: true
 
 
 # - acme-missiles-0.3

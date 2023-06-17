@@ -37,9 +37,8 @@ import qualified Data.Map as M (Map, insert, lookup, alter)
 -- -- heaps
 -- import qualified Data.Heap as H (Heap, empty, null, size, insert, viewMin, deleteMin, Entry(..), )
 -- hoauth2
-import Network.OAuth.OAuth2 (OAuth2Token(..))
+import Network.OAuth.OAuth2 (OAuth2Token(..), AccessToken(..), ExchangeToken(..), RefreshToken(..), OAuth2Error, IdToken(..))
 import Network.OAuth2.Experiment (IdpUserInfo, conduitUserInfoRequest, mkAuthorizeRequest, conduitTokenRequest, conduitRefreshTokenRequest, HasRefreshTokenRequest(..), WithExchangeToken, IdpApplication(..), GrantTypeFlow(..))
-import Network.OAuth.OAuth2.Internal (AccessToken(..), ExchangeToken(..), RefreshToken(..), OAuth2Error, IdToken(..))
 import Network.OAuth.OAuth2.TokenRequest (Errors)
 -- http-client
 import Network.HTTP.Client (Manager)
@@ -78,7 +77,7 @@ type Scotty = ScottyT TL.Text
 --
 -- https://learn.microsoft.com/en-us/azure/app-service/configure-authentication-user-identities#access-user-claims-in-app-code
 
--- | The JWT identity token extracted from the headers injected by App Service can be decoded for its claims e.g. @sub@ (which is unique for each user for a given app)
+-- | The JWT identity token from the @X-MS-TOKEN-AAD-ID-TOKEN@ header injected by App Service can be decoded for its claims e.g. @sub@ (which is unique for each user for a given app)
 --
 -- https://bogdan.bynapse.com/azure/the-app-service-token-store-was-added-to-app-service-authentication-authorization-and-it-is-a-repository-of-oauth-tokens-associated-with-your-app-users-when-a-user-logs-into-your-app-via-an-iden/
 --
@@ -209,7 +208,8 @@ refreshLoop :: (MonadUnliftIO m, Ord uid, HasRefreshTokenRequest a) =>
 refreshLoop ts idpApp mgr uid oaToken = forkFinally (act oaToken) cleanup
   where
     cleanup = \case
-      Left _ -> pure () -- FIXME what to do in case of auth errors?
+      Left _ -> do
+        expireUser ts uid -- auth error(s), remove user from memory
       Right _ -> pure ()
     act oat = do
       ein <- updateToken ts uid oat -- replace new token in memory

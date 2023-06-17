@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@v3
       - name: Setup compiler, build and test
         run: |
-          stack build --resolver ${{ matrix.stack-resolver }}
+          stack build --silent --resolver ${{ matrix.stack-resolver }}
           stack test
 
       # - name: Setup Haskell tools
