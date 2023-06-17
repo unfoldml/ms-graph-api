@@ -8,8 +8,6 @@ on:
 
 defaults: { run: { shell: bash } }
 
-on: [push]
-
 jobs:
   build:
     name: GHC ${{ matrix.ghc-version }} on ${{ matrix.os }}
