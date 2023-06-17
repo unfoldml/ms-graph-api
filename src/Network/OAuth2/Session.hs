@@ -42,8 +42,6 @@ import Network.OAuth2.Experiment (IdpUserInfo, conduitUserInfoRequest, mkAuthori
 import Network.OAuth.OAuth2.TokenRequest (Errors)
 -- http-client
 import Network.HTTP.Client (Manager)
--- http-conduit
-import Network.HTTP.Conduit (newManager, tlsManagerSettings)
 -- http-types
 import Network.HTTP.Types (status302, status400, status401)
 -- scotty

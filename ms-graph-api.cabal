@@ -34,15 +34,12 @@ library
                      , containers
                      , hoauth2 == 2.6.0
                      , http-client
-                     , http-conduit
                      , http-types
                      , jwt
                      , modern-uri
                      , req
-                     , retry
                      , scientific
                      , scotty
-                     , stm
                      , text
                      , time >= 1.8
                      , transformers >= 0.5
