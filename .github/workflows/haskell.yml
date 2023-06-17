@@ -16,23 +16,29 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        ghc-version: ['9.6', '9.4', '9.2', '9.0', '8.10']
+        # ghc-version: ['9.6', '9.4', '9.2', '9.0', '8.10']
+        stack-resolver: ['lts-20.24', 'lts-19.33', 'lts-18.28', 'lts-16.31', 'lts-14.27']
     steps:
       - name: git checkout
         uses: actions/checkout@v3
-      - name: Setup Haskell tools
-        uses: haskell/actions/setup@v2
-        with:
-          ghc-version: ${{ matrix.ghc-version }}
-          # cabal-version: 'latest'. Omitted, but defaults to 'latest'
-          enable-stack: true
-          stack-setup-ghc: true # Runs stack setup to install the specified GHC. 
-          stack-no-global: true # Prevents installing GHC and Cabal globally.
-          stack-version: 'latest'
-      - name: Stack build and test
+      - name: Setup compiler, build and test
         run: |
-          stack build --system-ghc --no-install-ghc
+          stack build --resolver ${{ matrix.stack-resolver }}
           stack test
+          
+      # - name: Setup Haskell tools
+      #   uses: haskell/actions/setup@v2
+      #   with:
+      #     ghc-version: ${{ matrix.ghc-version }}
+      #     # cabal-version: 'latest'. Omitted, but defaults to 'latest'
+      #     enable-stack: true
+      #     stack-setup-ghc: true # Runs stack setup to install the specified GHC. 
+      #     stack-no-global: true # Prevents installing GHC and Cabal globally.
+      #     stack-version: 'latest'
+      # - name: Stack build and test
+      #   run: |
+      #     stack build --system-ghc --no-install-ghc
+      #     stack test
 
   # ci:
   #   name: CI
