@@ -16,8 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        # ghc-version: ['9.6', '9.4', '9.2', '9.0', '8.10']
-        stack-resolver: ['lts-20.24', 'lts-19.33', 'lts-18.28', 'lts-16.31', 'lts-14.27']
+        stack-resolver: ['nightly-2023-06-17', 'lts-20.24']
     steps:
       - name: git checkout
         uses: actions/checkout@v3
