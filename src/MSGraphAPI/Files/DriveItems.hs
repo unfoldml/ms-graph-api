@@ -20,10 +20,13 @@ import qualified MSGraphAPI.Internal.Common as MSG (get, getLbs, post, Collectio
 -- @GET \/me\/drive\/items\/{item-id}\/content@
 --
 -- https://learn.microsoft.com/en-us/graph/api/driveitem-get-content?view=graph-rest-1.0&tabs=http#request
-downloadFileMe :: Text -> AccessToken -> Req LBS.ByteString
+downloadFileMe :: Text -- ^ item ID
+               -> AccessToken -> Req LBS.ByteString
 downloadFileMe itemId = MSG.getLbs ["me", "drive", "items", itemId, "content"] mempty
 
 -- | download a file from a drive
+--
+-- @GET \/drives\/{drive-id}\/items\/{item-id}\/content@
 --
 -- https://learn.microsoft.com/en-us/graph/api/driveitem-get-content?view=graph-rest-1.0&tabs=http#request
 downloadFile :: Text -- ^ drive ID

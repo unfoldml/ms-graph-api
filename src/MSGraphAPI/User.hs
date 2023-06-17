@@ -26,12 +26,22 @@ import Data.Time.LocalTime (ZonedTime, zonedTimeToLocalTime)
 
 import qualified MSGraphAPI.Internal.Common as MSG (get, post, aesonOptions)
 
--- | https://learn.microsoft.com/en-us/graph/api/user-get?view=graph-rest-1.0&tabs=http#request
+-- | Get user information
+--
+-- @GET \/users\/{user-id}@
+--
+-- https://learn.microsoft.com/en-us/graph/api/user-get?view=graph-rest-1.0&tabs=http#request
 get :: Text -- ^ user id
     -> AccessToken -> Req User
 get uid = MSG.get ["users", uid] mempty
 
--- | get signed-in user https://learn.microsoft.com/en-us/graph/api/user-get?view=graph-rest-1.0&tabs=http#request-1
+-- | Get information on signed-in user
+--
+-- Calling the \/me endpoint requires a signed-in user and therefore a delegated permission. Application permissions are not supported when using the \/me endpoint.
+--
+-- @GET \/me@
+--
+-- https://learn.microsoft.com/en-us/graph/api/user-get?view=graph-rest-1.0&tabs=http#request-1
 getMe :: AccessToken -> Req User
 getMe = MSG.get ["me"] mempty
 

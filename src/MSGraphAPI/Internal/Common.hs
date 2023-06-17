@@ -49,7 +49,7 @@ import Network.OAuth2.Session (Tokens)
 
 -- | @POST https:\/\/graph.microsoft.com\/v1.0\/...@
 post :: (A.FromJSON b, A.ToJSON a) =>
-        [Text] -- ^ URI segments
+        [Text] -- ^ URI path segments
      -> Option 'Https
      -> a -- ^ request body
      -> AccessToken
@@ -61,7 +61,7 @@ post paths params bdy tok = responseBody <$> req POST url (ReqBodyJson bdy) json
 
 -- | @GET https:\/\/graph.microsoft.com\/v1.0\/...@
 get :: A.FromJSON a =>
-       [Text] -- ^ URI segments
+       [Text] -- ^ URI path segments
     -> Option 'Https
     -> AccessToken
     -> Req a
@@ -70,7 +70,12 @@ get paths params tok = responseBody <$> req GET url NoReqBody jsonResponse opts
     opts = auth <> params
     (url, auth) = msGraphReqConfig tok paths
 
-getLbs :: [Text] -> Option 'Https -> AccessToken -> Req LBS.ByteString
+-- | @GET https:\/\/graph.microsoft.com\/v1.0\/...@
+--
+-- Returns the response body as a bytestring, e.g. for endpoints that download files or general bytestring payloads
+getLbs :: [Text] -- ^ URI path segments
+       -> Option 'Https
+       -> AccessToken -> Req LBS.ByteString
 getLbs paths params tok = responseBody <$> req GET url NoReqBody lbsResponse opts
   where
     opts = auth <> params
