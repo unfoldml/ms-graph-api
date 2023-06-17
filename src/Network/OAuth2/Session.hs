@@ -12,9 +12,11 @@ module Network.OAuth2.Session (
   , replyEndpoint
   -- * In-memory user session
   , Tokens
+  , newTokens
   , UserSub
   , lookupUser
   , expireUser
+  , tokensToList
   -- * Scotty misc
   , Scotty
   , Action
@@ -33,7 +35,7 @@ import Data.Aeson
 -- bytestring
 import qualified Data.ByteString.Lazy.Char8 as BSL
 -- containers
-import qualified Data.Map as M (Map, insert, lookup, alter)
+import qualified Data.Map as M (Map, insert, lookup, alter, toList)
 -- -- heaps
 -- import qualified Data.Heap as H (Heap, empty, null, size, insert, viewMin, deleteMin, Entry(..), )
 -- hoauth2
@@ -241,7 +243,7 @@ instance Show OAuthSessionError where
     OASEJWTException jwtes -> unwords ["JWT error(s):", show jwtes]
     OASENoOpenID -> unwords ["No ID token found. Ensure 'openid' scope appears in token request"]
 
-
+-- | Insert or update a token in the 'Tokens' object
 updateToken :: (MonadIO m, Ord uid) =>
                Tokens uid OAuth2Token
             -> uid -- ^ user id
@@ -257,6 +259,7 @@ updateToken ts uid oat = do
     writeTVar ts (TokensData m')
     pure ein
 
+-- | Remove a user, i.e. they will have to authenticate once more
 expireUser :: (MonadIO m, Ord uid) =>
               Tokens uid t
            -> uid -- ^ user identifier e.g. @sub@
@@ -264,6 +267,7 @@ expireUser :: (MonadIO m, Ord uid) =>
 expireUser ts uid =
   atomically $ modifyTVar ts $ \td -> td{ thUsersMap = M.alter (const Nothing) uid (thUsersMap td)}
 
+-- | Look up a user identifier and return their current token, if any
 lookupUser :: (MonadIO m, Ord uid) =>
               Tokens uid t
            -> uid -- ^ user identifier e.g. @sub@
@@ -272,11 +276,22 @@ lookupUser ts uid = atomically $ do
   thp <- readTVar ts
   pure $ M.lookup uid (thUsersMap thp)
 
+-- | return a list representation of the 'Tokens' object
+tokensToList :: MonadIO m => Tokens k a -> m [(k, a)]
+tokensToList ts = atomically $ do
+  (TokensData m) <- readTVar ts
+  pure $ M.toList m
+
+-- | Create an empty 'Tokens' object
+newTokens :: (MonadIO m, Ord uid) => m (Tokens uid t)
+newTokens = newTVarIO (TokensData mempty)
+
 -- | transactional token store
 type Tokens uid t = TVar (TokensData uid t)
-data TokensData uid t = TokensData {
+newtype TokensData uid t = TokensData {
   thUsersMap :: M.Map uid t
-                             }
+  } deriving (Eq, Show)
+
 
 
 -- | Decode and validate ID token
