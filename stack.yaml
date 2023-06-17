@@ -33,10 +33,16 @@ packages:
 - .
 # Dependency packages to be pulled from upstream that are not in the resolver.
 # These entries can reference officially published versions as well as
-# forks / in-progress versions pinned to a git hash. For example:
+# forks / in-progress versions pinned to a git hash. For extra:
 #
 extra-deps:
+# - hoauth2-2.6.0
 - validation-selective-0.2.0.0
+- selective-0.6
+
+allow-newer: true
+
+
 # - acme-missiles-0.3
 # - git: https://github.com/commercialhaskell/stack.git
 #   commit: e7b331f14bcffb8367cd58fbfc8b40ec7642100a

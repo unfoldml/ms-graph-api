@@ -38,8 +38,7 @@ import qualified Data.Map as M (Map, insert, lookup, alter)
 -- import qualified Data.Heap as H (Heap, empty, null, size, insert, viewMin, deleteMin, Entry(..), )
 -- hoauth2
 import Network.OAuth.OAuth2 (OAuth2Token(..))
-import Network.OAuth2.Experiment (IdpUserInfo, conduitUserInfoRequest, mkAuthorizeRequest, conduitTokenRequest, conduitRefreshTokenRequest)
-import Network.OAuth2.Experiment.Types (HasRefreshTokenRequest(..), WithExchangeToken(..), IdpApplication(..), GrantTypeFlow(..))
+import Network.OAuth2.Experiment (IdpUserInfo, conduitUserInfoRequest, mkAuthorizeRequest, conduitTokenRequest, conduitRefreshTokenRequest, HasRefreshTokenRequest(..), WithExchangeToken, IdpApplication(..), GrantTypeFlow(..))
 import Network.OAuth.OAuth2.Internal (AccessToken(..), ExchangeToken(..), RefreshToken(..), OAuth2Error, IdToken(..))
 import Network.OAuth.OAuth2.TokenRequest (Errors)
 -- http-client
