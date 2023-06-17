@@ -3,14 +3,16 @@
 {-# language DeriveGeneric, GeneralizedNewtypeDeriving, DerivingStrategies, DeriveDataTypeable  #-}
 {-# language OverloadedStrings #-}
 {-# options_ghc -Wno-unused-imports #-}
+-- | OAuth user session
 module Network.OAuth2.Session (
   -- * Azure App Service
-  aadHeaderIdToken
-  -- * OAuth2
+  withAADUser
+  -- * OAuth2 endpoints
   , loginEndpoint
   , replyEndpoint
   -- * In-memory user session
   , Tokens
+  , UserSub
   , lookupUser
   , expireUser
   -- * Scotty misc
@@ -32,8 +34,8 @@ import Data.Aeson
 import qualified Data.ByteString.Lazy.Char8 as BSL
 -- containers
 import qualified Data.Map as M (Map, insert, lookup, alter)
--- heaps
-import qualified Data.Heap as H (Heap, empty, null, size, insert, viewMin, deleteMin, Entry(..), )
+-- -- heaps
+-- import qualified Data.Heap as H (Heap, empty, null, size, insert, viewMin, deleteMin, Entry(..), )
 -- hoauth2
 import Network.OAuth.OAuth2 (OAuth2Token(..))
 import Network.OAuth2.Experiment (IdpUserInfo, conduitUserInfoRequest, mkAuthorizeRequest, conduitTokenRequest, conduitRefreshTokenRequest)
@@ -48,7 +50,7 @@ import Network.HTTP.Conduit (newManager, tlsManagerSettings)
 import Network.HTTP.Types (status302, status400, status401)
 -- scotty
 import Web.Scotty (scotty, RoutePattern)
-import Web.Scotty.Trans (scottyT, ActionT, ScottyT, get, raise, params, header, setHeader, status, text)
+import Web.Scotty.Trans (scottyT, ActionT, ScottyT, get, raise, redirect, params, header, setHeader, status, text)
 -- text
 import qualified Data.Text as T (Text, pack, unwords)
 import qualified Data.Text.Lazy as TL (Text, pack, unpack, toStrict, takeWhile, fromStrict)
@@ -67,17 +69,21 @@ import URI.ByteString (URI)
 -- validation-selective
 import Validation (Validation, failure, validationToEither)
 
-import Network.OAuth2.Provider.AzureAD (OAuthCfg, azureADApp, AzureAD(..), AzureADUser(..))
+import Network.OAuth2.Provider.AzureAD (OAuthCfg, azureADApp, AzureAD)
 import Network.OAuth2.JWT (jwtClaims, UserSub(..), userSub, ApiAudience, apiAudience, decValidSub, decValidExp, decValidNbf, JWTException(..))
 
 type Action = ActionT TL.Text
 type Scotty = ScottyT TL.Text
 
--- * Azure App service adds headers into each request, which the backend can access to identify the user
+-- * Azure App Service adds headers into each request, which the backend can access to identify the user
+--
+-- https://learn.microsoft.com/en-us/azure/app-service/configure-authentication-user-identities#access-user-claims-in-app-code
 
 -- | The JWT identity token extracted from the headers injected by App Service can be decoded for its claims e.g. @sub@ (which is unique for each user for a given app)
 --
 -- https://bogdan.bynapse.com/azure/the-app-service-token-store-was-added-to-app-service-authentication-authorization-and-it-is-a-repository-of-oauth-tokens-associated-with-your-app-users-when-a-user-logs-into-your-app-via-an-iden/
+--
+-- https://stackoverflow.com/questions/46757665/authentication-for-azure-functions/
 aadHeaderIdToken :: (MonadIO m) =>
                     (UserSub -> Action m ()) -- ^ look up the UserSub's token, do stuff with it
                  -> Action m ()
@@ -99,11 +105,28 @@ aadHeaderIdToken act = do
           text $ TL.pack $ unwords ["AAD header ID token validation exception:", show e]
           status status401
 
+-- | Decode the App Service ID token header @X-MS-TOKEN-AAD-ID-TOKEN@, look its user up in the local token store, supply token @t@ to continuation. If the user @sub@ cannot be found in the token store the browser is redirected to the login URI.
+--
+-- Special case of 'aadHeaderIdToken'
+withAADUser :: MonadIO m =>
+               Tokens UserSub t
+            -> TL.Text -- ^ login URI
+            -> (t -> Action m ()) -- ^ call MSGraph APIs with token @t@, etc.
+            -> Action m ()
+withAADUser ts loginURI act = aadHeaderIdToken $ \usub -> do
+  mt <- lookupUser ts usub
+  case mt of
+    Just t -> act t
+    _ -> do
+      liftIO $ putStrLn $ unwords ["User", show usub, "not authenticated. Redirecting to login:", TL.unpack loginURI]
+      redirect loginURI
 
 
 -- * OAuth flow
 
 -- | Login endpoint
+--
+-- see 'azureADApp'
 loginEndpoint :: (MonadIO m) =>
                  IdpApplication 'AuthorizationCode AzureAD
               -> RoutePattern -- ^ e.g. @"/login"@
@@ -119,11 +142,13 @@ loginH idpApp = do
   status status302
 
 -- | The identity provider redirects the client to the 'reply' endpoint as part of the OAuth flow : https://learn.microsoft.com/en-us/graph/auth-v2-user?view=graph-rest-1.0&tabs=http#authorization-response
+--
+-- see 'azureADApp'
 replyEndpoint :: MonadIO m =>
                  IdpApplication 'AuthorizationCode AzureAD
               -> Tokens UserSub OAuth2Token
               -> Manager
-              -> RoutePattern -- ^ e.g. @"/oauth/reply"@
+              -> RoutePattern -- ^ e.g. @"/oauth\/reply"@
               -> Scotty m ()
 replyEndpoint idpApp ts mgr path =
   get path (replyH idpApp ts mgr)

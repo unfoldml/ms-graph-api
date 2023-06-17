@@ -4,7 +4,12 @@
 {-# language DataKinds, TypeFamilies, TypeApplications #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# options_ghc -Wno-ambiguous-fields #-}
-module Network.OAuth2.Provider.AzureAD where
+module Network.OAuth2.Provider.AzureAD (
+  -- * OAuth2 configuration
+  OAuthCfg(..)
+  , AzureAD
+  , AzureADUser
+  , azureADApp) where
 
 -- import Data.String (IsString(..))
 -- import GHC.Generics
@@ -38,8 +43,8 @@ data OAuthCfg = OAuthCfg {
   , oacRedirectURI :: URI -- ^ OAuth2 redirect URI
                          }
 
--- | NB : at minimum, OIDC scopes @openid@ and @offline_access@ are always requested since code inside assumes we have access to refresh tokens and ID tokens
-azureADApp :: OAuthCfg
+-- | NB : OIDC scopes @openid@ and @offline_access@ are ALWAYS requested since the library assumes we have access to refresh tokens and ID tokens
+azureADApp :: OAuthCfg -- ^ OAuth configuration
            -> IdpApplication 'AuthorizationCode AzureAD
 azureADApp (OAuthCfg appname clid sec scopes authstate reduri) = defaultAzureADApp{
   idpAppName = appname

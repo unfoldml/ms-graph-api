@@ -18,21 +18,24 @@ tested-with:         GHC == 9.2.7
 library
   default-language:    Haskell2010
   hs-source-dirs:      src
-  exposed-modules:     MSGraphAPI.Auth
-                       Network.OAuth2.JWT
+  exposed-modules:     MSGraphAPI.Internal.Common
+                       MSGraphAPI.User
+                       MSGraphAPI.Drive
+                       MSGraphAPI.Files.DriveItems
                        Network.OAuth2.Provider.AzureAD
                        Network.OAuth2.Session
+  other-modules:       MSGraphAPI.Auth
+                       Network.OAuth2.JWT
   build-depends:       base >= 4.7 && < 5
                      , aeson
                      , bytestring
                      , containers
-                     , heaps
                      , hoauth2
                      , http-client
                      , http-conduit
                      , http-types
                      , jwt
-                     , little-rio
+                     , modern-uri
                      , req
                      , retry
                      , scientific
@@ -48,6 +51,11 @@ library
                      , warp
   ghc-options:         -Wall
                        -Wcompat
+                       -Wno-unused-imports
+  default-extensions:  OverloadedStrings
+                       DeriveGeneric
+                       DeriveFunctor
+                       DerivingStrategies
 
 
 -- test-suite spec
