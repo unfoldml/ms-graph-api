@@ -1,13 +1,16 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE DataKinds #-}
-{-# language DeriveGeneric, GeneralizedNewtypeDeriving, DerivingStrategies #-}
+{-# language DeriveGeneric, GeneralizedNewtypeDeriving, DerivingStrategies, DeriveDataTypeable  #-}
 {-# language OverloadedStrings #-}
 {-# options_ghc -Wno-unused-imports #-}
 module Network.OAuth2.Session where
 
+import Control.Exception (Exception(..), SomeException(..))
 import Control.Monad.IO.Class (MonadIO(..))
 import Data.List.NonEmpty (NonEmpty)
 import Data.Maybe (fromMaybe)
 import Data.String (IsString(..))
+import Data.Typeable (Typeable)
 import GHC.Exception (SomeException)
 
 -- aeson
@@ -47,6 +50,7 @@ import Control.Monad.Trans.Except (ExceptT(..), withExceptT, runExceptT, throwE)
 -- unliftio
 import UnliftIO (MonadUnliftIO(..))
 import UnliftIO.Concurrent (ThreadId, forkFinally, threadDelay)
+import UnliftIO.Exception (throwIO)
 import UnliftIO.STM (STM, TVar, atomically, newTVarIO, readTVar, writeTVar, modifyTVar)
 -- uri-bytestring
 import URI.ByteString (URI)
@@ -74,71 +78,49 @@ loginH oacfg = do
   setHeader "Location" (mkAuthorizeRequest $ azureADApp oacfg)
   status status302
 
--- -- replyH :: Show b =>
--- --                 OAuthCfg
--- --                 -> (OAuth2Token -> ExceptT T.Text IO b)
--- --                 -> Action IO b
--- replyH oacfg act = do
---   ps <- params
---   excepttToActionM $ do
---        case lookup "code" ps of
---          Just codeP -> do
---            let
---              etoken = ExchangeToken $ TL.toStrict codeP
---            withToken oacfg etoken act
---          Nothing -> throwE $ T.pack $ unwords ["cannot decode token"]
+replyEndpoint :: MonadIO m =>
+                 IdpApplication 'AuthorizationCode AzureAD
+              -> Tokens UserSub OAuth2Token
+              -> Manager
+              -> RoutePattern
+              -> Scotty m ()
+replyEndpoint idpApp ts mgr path =
+  get path (replyH idpApp ts mgr)
 
--- withToken :: MonadIO m =>
---           OAuthCfg
---        -> ExchangeToken -- ^ received
---        -> (OAuth2Token -> ExceptT T.Text m b)
---        -> ExceptT T.Text m b
--- withToken oacfg etoken act = do
---   let
---     idpApp = azureADApp oacfg
---   mgr <- liftIO $ newManager tlsManagerSettings
---   tokenResp <- withExceptT oauth2ErrorToText (conduitTokenRequest idpApp mgr etoken)
---   act withUserToken
-
-
--- tokenResp :: OAuthCfg
---               -> UserTokens AzureADUser
---               -> ExchangeToken
---               -> (OAuth2Token -> ExceptT TL.Text IO b)
---               -> ExceptT TL.Text IO b
--- withUserToken oacfg tv etoken act = do
---   let
---     idpApp = azureADApp oacfg
---   mgr <- liftIO $ newManager tlsManagerSettings
---   token <- withExceptT oauth2ErrorToText (conduitTokenRequest idpApp mgr etoken)
---   u <- withExceptT bslToText $ conduitUserInfoRequest idpApp mgr (accessToken token)
---   liftIO $ atomically $ updateUserToken tv u token
---   act token
-
-
-
--- type UserTokens u = TVar (M.Map u OAuth2Token)
-
--- updateUserToken :: (Ord u) => UserTokens u -> u -> OAuth2Token -> STM ()
--- updateUserToken tv k v = modifyTVar tv (M.insert k v)
+replyH :: MonadIO m =>
+          IdpApplication 'AuthorizationCode AzureAD
+       -> Tokens UserSub OAuth2Token
+       -> Manager
+       -> ActionT TL.Text m ()
+replyH idpApp ts mgr = do
+  ps <- params
+  excepttToActionM $ do
+       case lookup "code" ps of
+         Just codeP -> do
+           let
+             etoken = ExchangeToken $ TL.toStrict codeP
+           _ <- fetchUpdateToken ts idpApp mgr etoken
+           pure ()
+         Nothing -> throwE $ T.pack $ unwords ["cannot decode token"]
 
 --
 
 oauth2ErrorToText :: Show a => a -> T.Text
 oauth2ErrorToText e = T.pack $ "Unable to fetch access token. Details : " ++ show e
 
-bslToText :: BSL.ByteString -> T.Text
-bslToText = T.pack . BSL.unpack
+-- bslToText :: BSL.ByteString -> T.Text
+-- bslToText = T.pack . BSL.unpack
 
 
 -- | 1) the ExchangeToken arrives with the redirect once the user has approved the scopes in the browser
 -- https://learn.microsoft.com/en-us/graph/auth-v2-user?view=graph-rest-1.0&tabs=http#authorization-response
-fetchUpdateToken :: Tokens UserSub OAuth2Token
+fetchUpdateToken :: MonadUnliftIO m =>
+                    Tokens UserSub OAuth2Token
                  -> IdpApplication 'AuthorizationCode AzureAD
                  -> Manager
                  -> ExchangeToken -- ^ also called 'code'. Expires in 10 minutes
-                 -> IO (Either T.Text OAuth2Token)
-fetchUpdateToken ts idpApp mgr etoken = do
+                 -> ExceptT T.Text m OAuth2Token -- IO (Either T.Text OAuth2Token)
+fetchUpdateToken ts idpApp mgr etoken = ExceptT $ do
   tokenResp <- runExceptT $ do
     withExceptT oauth2ErrorToText (conduitTokenRequest idpApp mgr etoken) -- OAuth2 token
   case tokenResp of
@@ -153,12 +135,18 @@ fetchUpdateToken ts idpApp mgr etoken = do
           Left e -> pure $ Left $ T.pack (show e) -- ^ id token validation failed
     Left e -> pure $ Left e
 
+refreshLoop :: (MonadUnliftIO m, Ord uid, HasRefreshTokenRequest a) =>
+               Tokens uid OAuth2Token
+            -> IdpApplication a i
+            -> Manager
+            -> uid
+            -> OAuth2Token
+            -> m ThreadId
 refreshLoop ts idpApp mgr uid oaToken = forkFinally (act oaToken) cleanup
   where
-    cleanup =
-      undefined -- TODO
-    -- cleanup = \case
-    --   Right
+    cleanup = \case
+      Left e -> pure () -- FIXME what to do in case of auth errors?
+      Right _ -> pure ()
     act oat = do
       ein <- updateToken ts uid oat -- replace new token in memory
       let
@@ -167,14 +155,23 @@ refreshLoop ts idpApp mgr uid oaToken = forkFinally (act oaToken) cleanup
       case refreshToken oat of
         Nothing -> do
           expireUser ts uid -- cannot refresh, remove user from memory
-          pure $ Left (T.pack $ unwords ["Refresh token not found in OAT"]) -- TODO no refresh token
+          throwIO OASERefreshTokenNotFound -- no refresh token
         Just rtoken -> do
-          eo' <- runExceptT $ do
-            withExceptT oauth2ErrorToText (conduitRefreshTokenRequest idpApp mgr rtoken) -- get a new OAuth2 token
+          eo' <- runExceptT $ conduitRefreshTokenRequest idpApp mgr rtoken -- get a new OAuth2 token
           case eo' of
             Right oat' -> do
               act oat' -- loop
-            Left e -> pure $ Left e -- TODO
+            Left e -> throwIO (OASEOAuth2Errors e) -- refresh token request failed
+
+data OAuthSessionError = OASERefreshTokenNotFound
+                       | OASEOAuth2Errors (OAuth2Error Errors)
+                       deriving (Eq, Typeable)
+instance Exception OAuthSessionError
+instance Show OAuthSessionError where
+  show = \case
+    OASERefreshTokenNotFound -> unwords ["Refresh token not found in OAT"]
+    OASEOAuth2Errors oerrs ->
+      unwords ["OAuth2 error(s):", show oerrs]
 
 
 updateToken :: (MonadIO m, Ord uid) =>
