@@ -7,9 +7,11 @@ Haskell client bindings to the [Microsoft Graph API v1.0](https://learn.microsof
 ![main](https://github.com/unfoldml/ms-graph-api/actions/workflows/haskell.yml/badge.svg?branch=main)
 
 
-## Description
+## Introduction
 
-This library provides both the client interface and authorization infrastructure to integrate with Microsoft infrastructure, e.g. using ActiveDirectory as an OAuth2 identity provider.
+This library provides both the client interface (under the `MSGraphAPI` namespace) as well as helpers to integrate with Microsoft infrastructure, e.g. using ActiveDirectory as an OAuth2 identity provider.
+
+With the provided auth functions (see `Network.OAuth2.Session`) you can easily implement OAuth2 for your application, and the resulting token store is thread-safe and automatically renews before expiring.
 
 ## Status
 
