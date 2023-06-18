@@ -136,7 +136,7 @@ loginH :: Monad m =>
           IdpApplication 'AuthorizationCode AzureAD
        -> Action m ()
 loginH idpApp = do
-  setHeader "Location" (mkAuthorizeRequest idpApp) -- $ azureADApp oacfg)
+  setHeader "Location" (mkAuthorizeRequest idpApp) -- redirect to OAuth consent screen
   status status302
 
 -- | The identity provider redirects the client to the 'reply' endpoint as part of the OAuth flow : https://learn.microsoft.com/en-us/graph/auth-v2-user?view=graph-rest-1.0&tabs=http#authorization-response
@@ -165,7 +165,7 @@ replyH idpApp ts mgr = do
              etoken = ExchangeToken $ TL.toStrict codeP
            _ <- fetchUpdateToken ts idpApp mgr etoken
            pure ()
-         Nothing -> throwE OASEExchangeTokenNotFound -- $ T.pack $ unwords ["cannot decode token"]
+         Nothing -> throwE OASEExchangeTokenNotFound
 
 --
 
@@ -183,7 +183,7 @@ fetchUpdateToken :: MonadUnliftIO m =>
                  -> IdpApplication 'AuthorizationCode AzureAD
                  -> Manager
                  -> ExchangeToken -- ^ also called 'code'. Expires in 10 minutes
-                 -> ExceptT OAuthSessionError m OAuth2Token -- IO (Either T.Text OAuth2Token)
+                 -> ExceptT OAuthSessionError m OAuth2Token
 fetchUpdateToken ts idpApp mgr etoken = ExceptT $ do
   tokenResp <- runExceptT $ conduitTokenRequest idpApp mgr etoken -- OAuth2 token
   case tokenResp of
@@ -195,14 +195,15 @@ fetchUpdateToken ts idpApp mgr etoken = ExceptT $ do
           Right uid -> do
             _ <- refreshLoop ts idpApp mgr uid oat -- fork a thread and start refresh loop for this user
             pure $ Right oat
-          Left es -> pure $ Left (OASEJWTException es) -- $ T.pack (show e) -- ^ id token validation failed
+          Left es -> pure $ Left (OASEJWTException es) -- id token validation failed
     Left es -> pure $ Left (OASEOAuth2Errors es)
 
+-- | 2) fork a thread and start token refresh loop for user @uid@
 refreshLoop :: (MonadUnliftIO m, Ord uid, HasRefreshTokenRequest a) =>
                Tokens uid OAuth2Token
             -> IdpApplication a i
             -> Manager
-            -> uid
+            -> uid -- ^ user ID
             -> OAuth2Token
             -> m ThreadId
 refreshLoop ts idpApp mgr uid oaToken = forkFinally (act oaToken) cleanup

@@ -8,6 +8,10 @@ and this project adheres to the
 
 ## Unreleased
 
+## 0.5.0.0
+
+Add 'getE', 'postE', 'tryReq' to pattern match against HTTP exceptions
+
 ## 0.4.0.0
 
 Add Session.tokensToList and Session.newTokens

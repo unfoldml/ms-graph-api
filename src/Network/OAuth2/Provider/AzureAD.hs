@@ -34,6 +34,7 @@ data AzureAD = AzureAD deriving (Eq, Show)
 
 type instance IdpUserInfo AzureAD = AzureADUser
 
+-- | Configuration object of the OAuth2 application
 data OAuthCfg = OAuthCfg {
   oacAppName :: TL.Text -- ^ application name
   , oacClientId :: ClientId -- ^ app client ID : see https://stackoverflow.com/a/70670961
@@ -43,7 +44,7 @@ data OAuthCfg = OAuthCfg {
   , oacRedirectURI :: URI -- ^ OAuth2 redirect URI
                          }
 
--- | NB : OIDC scopes @openid@ and @offline_access@ are ALWAYS requested since the library assumes we have access to refresh tokens and ID tokens
+-- | NB : scopes @openid@ and @offline_access@ are ALWAYS requested since the library assumes we have access to refresh tokens and ID tokens
 azureADApp :: OAuthCfg -- ^ OAuth configuration
            -> IdpApplication 'AuthorizationCode AzureAD
 azureADApp (OAuthCfg appname clid sec scopes authstate reduri) = defaultAzureADApp{
