@@ -45,6 +45,8 @@ data OAuthCfg = OAuthCfg {
                          }
 
 -- | NB : scopes @openid@ and @offline_access@ are ALWAYS requested since the library assumes we have access to refresh tokens and ID tokens
+--
+-- Reference on Microsoft Graph permissions : https://learn.microsoft.com/en-us/graph/permissions-reference
 azureADApp :: OAuthCfg -- ^ OAuth configuration
            -> IdpApplication 'AuthorizationCode AzureAD
 azureADApp (OAuthCfg appname clid sec scopes authstate reduri) = defaultAzureADApp{

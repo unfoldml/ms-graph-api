@@ -1,4 +1,4 @@
-module MSGraphAPI.Files.DriveItems where
+module MSGraphAPI.Files.DriveItem where
 
 import GHC.Generics (Generic(..))
 
@@ -12,8 +12,19 @@ import Network.OAuth.OAuth2.Internal (AccessToken(..))
 import Network.HTTP.Req (Req)
 -- text
 import Data.Text (Text, pack, unpack)
+-- time
+import Data.Time (LocalTime)
 
 import qualified MSGraphAPI.Internal.Common as MSG (get, getLbs, post, Collection, aesonOptions)
+
+data DriveItem = DriveItem {
+  diId :: Text
+  , diName :: Text
+  , diLastModifiedDateTime :: LocalTime
+                           } deriving (Eq, Ord, Show, Generic)
+instance A.FromJSON DriveItem where
+  parseJSON = A.genericParseJSON (MSG.aesonOptions "di")
+
 
 -- | download a complete file from user's directory
 --

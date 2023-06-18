@@ -20,8 +20,10 @@ library
   hs-source-dirs:      src
   exposed-modules:     
                        MSGraphAPI.User
+                       MSGraphAPI.Users.User
+                       MSGraphAPI.Users.Group
                        MSGraphAPI.Drive
-                       MSGraphAPI.Files.DriveItems
+                       MSGraphAPI.Files.DriveItem
                        Network.OAuth2.Provider.AzureAD
                        Network.OAuth2.Session
                        MSGraphAPI.Internal.Common
