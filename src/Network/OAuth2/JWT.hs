@@ -26,8 +26,8 @@ import Data.Scientific (coefficient)
 import qualified Data.Text as T (Text, unpack)
 -- time
 import Data.Time (UTCTime(..), NominalDiffTime, getCurrentTime, fromGregorian, addUTCTime, diffUTCTime)
--- validation-selective
-import Validation (Validation(..), failure, validationToEither, maybeToSuccess)
+-- validation-micro
+import Validation.Micro (Validation(..), failure, validationToEither, maybeToSuccess)
 
 
 -- | 'sub' field

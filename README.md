@@ -13,10 +13,17 @@ This library provides both the client interface and authorization infrastructure
 
 ## Status
 
-This library is still in development, so expect missing funcionality.
+This library is still in development, so expect missing functionality.
 If there's anything you would like to see added, feel free to
 [open an issue](https://github.com/unfoldml/ms-graph-api/issues/new).
+In general, since the MS Graph API is quite large, features will be added to this library on a need basis.
+
+## Evolution of the library
+
 Some breaking changes might also be introduced as the library matures.
+
+We adhere to a simplified version of the [Package Versioning Policy](https://pvp.haskell.org/): breaking changes are signaled by increasing the major version number (e.g. 0.x -> 1.x ).
+
 
 ## Copyright
 

@@ -36,7 +36,7 @@ packages:
 # forks / in-progress versions pinned to a git hash. For extra:
 #
 extra-deps:
-- validation-selective-0.2.0.0
+- validation-micro-1.0.0.0
 - selective-0.6
 
 # allow-newer: true

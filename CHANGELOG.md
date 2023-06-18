@@ -8,6 +8,10 @@ and this project adheres to the
 
 ## Unreleased
 
+## 0.6.0.0
+
+Depend on `validation-micro` rather than `validation-selective`.
+
 ## 0.5.0.0
 
 Add 'getE', 'postE', 'tryReq' to pattern match against HTTP exceptions

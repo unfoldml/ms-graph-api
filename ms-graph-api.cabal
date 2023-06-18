@@ -1,5 +1,5 @@
 name:                ms-graph-api
-version:             0.5.0.0
+version:             0.6.0.0
 synopsis:            Microsoft Graph API
 description:         Bindings to the Microsoft Graph API
 homepage:            https://github.com/unfoldml/ms-graph-api
@@ -45,7 +45,7 @@ library
                      , transformers >= 0.5
                      , unliftio
                      , uri-bytestring
-                     , validation-selective
+                     , validation-micro
                      , wai
                      , warp
   ghc-options:         -Wall

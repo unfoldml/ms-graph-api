@@ -65,7 +65,7 @@ import UnliftIO.STM (STM, TVar, atomically, newTVarIO, readTVar, writeTVar, modi
 -- uri-bytestring
 import URI.ByteString (URI)
 -- validation-selective
-import Validation (Validation, failure, validationToEither)
+import Validation.Micro (Validation, failure, validationToEither)
 
 import Network.OAuth2.Provider.AzureAD (OAuthCfg, azureADApp, AzureAD)
 import Network.OAuth2.JWT (jwtClaims, UserSub(..), userSub, ApiAudience, apiAudience, decValidSub, decValidExp, decValidNbf, JWTException(..))
