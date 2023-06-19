@@ -4,15 +4,18 @@
 {-# language DataKinds, TypeFamilies, TypeApplications #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# options_ghc -Wno-ambiguous-fields #-}
+-- | Settings for using Azure Active Directory as OAuth identity provider
+--
+-- Both @Delegated@ (On-Behalf-Of) and @App-only@ (i.e. Client Credentials) authentication flows are supported. The former is useful when a user needs to login and delegate some permissions to the application (i.e. accessing personal data), whereas the second is for server processes and automation accounts.
 module Network.OAuth2.Provider.AzureAD (
     AzureAD
     -- * App flow
     , azureADApp
-  -- * OAuth2 flow
-  , OAuthCfg(..)
-  , AzureADUser
-  , azureOAuthADApp
-  ) where
+    -- * Delegated permissions OAuth2 flow
+    , OAuthCfg(..)
+    , AzureADUser
+    , azureOAuthADApp
+    ) where
 
 -- import Data.String (IsString(..))
 -- import GHC.Generics
@@ -38,11 +41,18 @@ data AzureAD = AzureAD deriving (Eq, Show)
 
 -- * App-only flow
 
--- | create app at https://go.microsoft.com/fwlink/?linkid=2083908
+-- | Azure OAuth application (i.e. with user consent screen)
+--
+-- NB : scope @offline_access@ is ALWAYS requested
+--
+-- create app at https://go.microsoft.com/fwlink/?linkid=2083908
 --
 -- also be aware to find the right client id.
 -- see https://stackoverflow.com/a/70670961
-azureADApp :: TL.Text -> ClientId -> ClientSecret -> [Scope] -> IdpApplication 'ClientCredentials AzureAD
+azureADApp :: TL.Text -- ^ application name
+           -> ClientId -> ClientSecret
+           -> [Scope] -- ^ scopes
+           -> IdpApplication 'ClientCredentials AzureAD
 azureADApp appname clid sec scopes = defaultAzureADApp{
   idpAppName = appname
   , idpAppClientId = clid
@@ -55,15 +65,14 @@ defaultAzureADApp =
   ClientCredentialsIDPAppConfig
     { idpAppClientId = ""
     , idpAppClientSecret = ""
-    , idpAppScope = Set.fromList ["openid", "offline_access", "profile", "email"] -- https://learn.microsoft.com/EN-US/azure/active-directory/develop/scopes-oidc#openid-connect-scopes
+    , idpAppScope = Set.fromList ["offline_access"] -- https://learn.microsoft.com/EN-US/azure/active-directory/develop/scopes-oidc#openid-connect-scopes
     , idpAppTokenRequestExtraParams = Map.empty
     , idpAppName = "default-azure-app" --
     , idp = defaultAzureADIdp
     }
 
 
--- * OAuth flow
-
+-- * Delegated permissions flow
 
 type instance IdpUserInfo AzureAD = AzureADUser
 
@@ -83,7 +92,7 @@ data OAuthCfg = OAuthCfg {
 --
 -- Reference on Microsoft Graph permissions : https://learn.microsoft.com/en-us/graph/permissions-reference
 --
--- | create app at https://go.microsoft.com/fwlink/?linkid=2083908
+-- create app at https://go.microsoft.com/fwlink/?linkid=2083908
 --
 -- also be aware to find the right client id.
 -- see https://stackoverflow.com/a/70670961

@@ -149,11 +149,11 @@ readToken ts = atomically $ readTVar ts
 --
 -- https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-client-creds-grant-flow
 fetchUpdateToken :: MonadIO m =>
-                    Token OAuth2Token
-                 -> IdpApplication 'ClientCredentials AzureAD
+                    IdpApplication 'ClientCredentials AzureAD
+                 -> Token OAuth2Token
                  -> Manager
                  -> m ()
-fetchUpdateToken ts idpApp mgr = liftIO $ void $ forkFinally loop cleanup
+fetchUpdateToken idpApp ts mgr = liftIO $ void $ forkFinally loop cleanup
   where
     cleanup = \case
       Left e -> throwIO e
