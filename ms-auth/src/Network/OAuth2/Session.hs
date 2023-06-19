@@ -1,16 +1,25 @@
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DataKinds, TypeFamilies #-}
 {-# language DeriveGeneric, GeneralizedNewtypeDeriving, DerivingStrategies, DeriveDataTypeable  #-}
 {-# language OverloadedStrings #-}
 {-# options_ghc -Wno-unused-imports #-}
--- | OAuth user session
+-- | MS Identity user session based on OAuth tokens
+--
+-- provides both Delegated permission flow (user-based) and App-only (e.g. server-server and automation accounts)
 module Network.OAuth2.Session (
   -- * Azure App Service
   withAADUser
-  -- * OAuth2 endpoints
+  -- * App-only flow
+  , Token
+  , newNoToken
+  , expireToken
+  , readToken
+  , fetchUpdateToken
+  -- * Delegated permissions flow
+  -- ** OAuth endpoints
   , loginEndpoint
   , replyEndpoint
-  -- * In-memory user session
+  -- ** In-memory user session
   , Tokens
   , newTokens
   , UserSub
@@ -24,6 +33,7 @@ module Network.OAuth2.Session (
 
 import Control.Exception (Exception(..), SomeException(..))
 import Control.Monad.IO.Class (MonadIO(..))
+import Data.Functor (void)
 import Data.List.NonEmpty (NonEmpty)
 import Data.Maybe (fromMaybe)
 import Data.String (IsString(..))
@@ -120,7 +130,58 @@ withAADUser ts loginURI act = aadHeaderIdToken $ \usub -> do
       redirect loginURI
 
 
--- * OAuth flow
+-- * App-only authorization scenarios (i.e via automation accounts. Human users not involved)
+
+
+-- app has one token at a time
+type Token t = TVar (Maybe t)
+
+newNoToken :: MonadIO m => m (Token t)
+newNoToken = newTVarIO Nothing
+expireToken :: MonadIO m => TVar (Maybe a) -> m ()
+expireToken ts = atomically $ modifyTVar ts (const Nothing)
+readToken :: MonadIO m => Token t -> m (Maybe t)
+readToken ts = atomically $ readTVar ts
+
+-- | Fetch an OAuth token and keep it updated. Should be called as a first thing in the app
+--
+-- NB : forks a thread in the background
+--
+-- https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-client-creds-grant-flow
+fetchUpdateToken :: MonadIO m =>
+                    Token OAuth2Token
+                 -> IdpApplication 'ClientCredentials AzureAD
+                 -> Manager
+                 -> m ()
+fetchUpdateToken ts idpApp mgr = liftIO $ void $ forkFinally loop cleanup
+  where
+    cleanup = \case
+      Left e -> throwIO e
+      Right _ -> pure ()
+    loop = do
+      tokenResp <- runExceptT $ conduitTokenRequest idpApp mgr -- OAuth2 token
+      case tokenResp of
+        Left es -> throwIO (OASEOAuth2Errors es)
+        Right oat -> do
+          ein <- updateToken ts oat
+          let
+            dtSecs = (round ein - 30) -- 30 seconds before expiry
+          threadDelay (dtSecs * 1000000) -- pause thread
+          loop
+
+updateToken :: (MonadIO m) =>
+               Token OAuth2Token -> OAuth2Token -> m NominalDiffTime
+updateToken ts oat = do
+  let
+    ein = fromIntegral $ fromMaybe 3600 (expiresIn oat) -- expires in [sec]
+  atomically $ do
+    writeTVar ts (Just oat)
+  pure ein
+
+
+
+
+-- * Delegated permission flow (i.e. human user involved)
 
 -- | Login endpoint
 --
@@ -141,7 +202,7 @@ loginH idpApp = do
 
 -- | The identity provider redirects the client to the 'reply' endpoint as part of the OAuth flow : https://learn.microsoft.com/en-us/graph/auth-v2-user?view=graph-rest-1.0&tabs=http#authorization-response
 --
--- see 'azureADApp'
+-- NB : forks a thread per logged in user to keep their tokens up to date
 replyEndpoint :: MonadIO m =>
                  IdpApplication 'AuthorizationCode AzureAD
               -> Tokens UserSub OAuth2Token
@@ -163,7 +224,7 @@ replyH idpApp ts mgr = do
          Just codeP -> do
            let
              etoken = ExchangeToken $ TL.toStrict codeP
-           _ <- fetchUpdateToken ts idpApp mgr etoken
+           _ <- fetchUpdateTokenDeleg ts idpApp mgr etoken
            pure ()
          Nothing -> throwE OASEExchangeTokenNotFound
 
@@ -178,13 +239,13 @@ replyH idpApp ts mgr = do
 
 -- | 1) the ExchangeToken arrives with the redirect once the user has approved the scopes in the browser
 -- https://learn.microsoft.com/en-us/graph/auth-v2-user?view=graph-rest-1.0&tabs=http#authorization-response
-fetchUpdateToken :: MonadUnliftIO m =>
-                    Tokens UserSub OAuth2Token
-                 -> IdpApplication 'AuthorizationCode AzureAD
-                 -> Manager
-                 -> ExchangeToken -- ^ also called 'code'. Expires in 10 minutes
-                 -> ExceptT OAuthSessionError m OAuth2Token
-fetchUpdateToken ts idpApp mgr etoken = ExceptT $ do
+fetchUpdateTokenDeleg :: MonadIO m =>
+                         Tokens UserSub OAuth2Token
+                      -> IdpApplication 'AuthorizationCode AzureAD
+                      -> Manager
+                      -> ExchangeToken -- ^ also called 'code'. Expires in 10 minutes
+                      -> ExceptT OAuthSessionError m OAuth2Token
+fetchUpdateTokenDeleg ts idpApp mgr etoken = ExceptT $ do
   tokenResp <- runExceptT $ conduitTokenRequest idpApp mgr etoken -- OAuth2 token
   case tokenResp of
     Right oat -> case idToken oat of
@@ -193,27 +254,27 @@ fetchUpdateToken ts idpApp mgr etoken = ExceptT $ do
         idtClaimsE <- decValidIdToken idt -- decode and validate ID token
         case idtClaimsE of
           Right uid -> do
-            _ <- refreshLoop ts idpApp mgr uid oat -- fork a thread and start refresh loop for this user
+            _ <- refreshLoopDeleg ts idpApp mgr uid oat -- fork a thread and start refresh loop for this user
             pure $ Right oat
           Left es -> pure $ Left (OASEJWTException es) -- id token validation failed
     Left es -> pure $ Left (OASEOAuth2Errors es)
 
 -- | 2) fork a thread and start token refresh loop for user @uid@
-refreshLoop :: (MonadUnliftIO m, Ord uid, HasRefreshTokenRequest a) =>
-               Tokens uid OAuth2Token
-            -> IdpApplication a i
-            -> Manager
-            -> uid -- ^ user ID
-            -> OAuth2Token
-            -> m ThreadId
-refreshLoop ts idpApp mgr uid oaToken = forkFinally (act oaToken) cleanup
+refreshLoopDeleg :: (MonadIO m, Ord uid, HasRefreshTokenRequest a) =>
+                    Tokens uid OAuth2Token
+                 -> IdpApplication a i
+                 -> Manager
+                 -> uid -- ^ user ID
+                 -> OAuth2Token
+                 -> m ThreadId
+refreshLoopDeleg ts idpApp mgr uid oaToken = liftIO $ forkFinally (act oaToken) cleanup
   where
     cleanup = \case
       Left _ -> do
         expireUser ts uid -- auth error(s), remove user from memory
       Right _ -> pure ()
     act oat = do
-      ein <- updateToken ts uid oat -- replace new token in memory
+      ein <- upsertToken ts uid oat -- replace new token for user uid in memory
       let
         dtSecs = (round ein - 30) -- 30 seconds before expiry
       threadDelay (dtSecs * 1000000) -- pause thread
@@ -245,12 +306,12 @@ instance Show OAuthSessionError where
     OASENoOpenID -> unwords ["No ID token found. Ensure 'openid' scope appears in token request"]
 
 -- | Insert or update a token in the 'Tokens' object
-updateToken :: (MonadIO m, Ord uid) =>
+upsertToken :: (MonadIO m, Ord uid) =>
                Tokens uid OAuth2Token
             -> uid -- ^ user id
             -> OAuth2Token -- ^ new token
             -> m NominalDiffTime -- ^ token expires in
-updateToken ts uid oat = do
+upsertToken ts uid oat = do
   let
     ein = fromIntegral $ fromMaybe 3600 (expiresIn oat) -- expires in [sec]
   atomically $ do

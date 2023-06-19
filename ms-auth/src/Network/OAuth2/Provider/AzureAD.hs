@@ -5,11 +5,14 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# options_ghc -Wno-ambiguous-fields #-}
 module Network.OAuth2.Provider.AzureAD (
-  -- * OAuth2 configuration
-  OAuthCfg(..)
-  , AzureAD
+    AzureAD
+    -- * App flow
+    , azureADApp
+  -- * OAuth2 flow
+  , OAuthCfg(..)
   , AzureADUser
-  , azureADApp) where
+  , azureOAuthADApp
+  ) where
 
 -- import Data.String (IsString(..))
 -- import GHC.Generics
@@ -32,6 +35,36 @@ import URI.ByteString.QQ (uri)
 
 data AzureAD = AzureAD deriving (Eq, Show)
 
+
+-- * App-only flow
+
+-- | create app at https://go.microsoft.com/fwlink/?linkid=2083908
+--
+-- also be aware to find the right client id.
+-- see https://stackoverflow.com/a/70670961
+azureADApp :: TL.Text -> ClientId -> ClientSecret -> [Scope] -> IdpApplication 'ClientCredentials AzureAD
+azureADApp appname clid sec scopes = defaultAzureADApp{
+  idpAppName = appname
+  , idpAppClientId = clid
+  , idpAppClientSecret = sec
+  , idpAppScope = Set.fromList (scopes <> ["offline_access"])
+  }
+
+defaultAzureADApp :: IdpApplication 'ClientCredentials AzureAD
+defaultAzureADApp =
+  ClientCredentialsIDPAppConfig
+    { idpAppClientId = ""
+    , idpAppClientSecret = ""
+    , idpAppScope = Set.fromList ["openid", "offline_access", "profile", "email"] -- https://learn.microsoft.com/EN-US/azure/active-directory/develop/scopes-oidc#openid-connect-scopes
+    , idpAppTokenRequestExtraParams = Map.empty
+    , idpAppName = "default-azure-app" --
+    , idp = defaultAzureADIdp
+    }
+
+
+-- * OAuth flow
+
+
 type instance IdpUserInfo AzureAD = AzureADUser
 
 -- | Configuration object of the OAuth2 application
@@ -44,12 +77,19 @@ data OAuthCfg = OAuthCfg {
   , oacRedirectURI :: URI -- ^ OAuth2 redirect URI
                          }
 
--- | NB : scopes @openid@ and @offline_access@ are ALWAYS requested since the library assumes we have access to refresh tokens and ID tokens
+-- | Azure OAuth application (i.e. with user consent screen)
+--
+-- NB : scopes @openid@ and @offline_access@ are ALWAYS requested since the library assumes we have access to refresh tokens and ID tokens
 --
 -- Reference on Microsoft Graph permissions : https://learn.microsoft.com/en-us/graph/permissions-reference
-azureADApp :: OAuthCfg -- ^ OAuth configuration
-           -> IdpApplication 'AuthorizationCode AzureAD
-azureADApp (OAuthCfg appname clid sec scopes authstate reduri) = defaultAzureADApp{
+--
+-- | create app at https://go.microsoft.com/fwlink/?linkid=2083908
+--
+-- also be aware to find the right client id.
+-- see https://stackoverflow.com/a/70670961
+azureOAuthADApp :: OAuthCfg -- ^ OAuth configuration
+                -> IdpApplication 'AuthorizationCode AzureAD
+azureOAuthADApp (OAuthCfg appname clid sec scopes authstate reduri) = defaultAzureOAuthADApp{
   idpAppName = appname
   , idpAppClientId = clid
   , idpAppClientSecret = sec
@@ -58,12 +98,8 @@ azureADApp (OAuthCfg appname clid sec scopes authstate reduri) = defaultAzureADA
   , idpAppRedirectUri = reduri
   }
 
--- create app at https://go.microsoft.com/fwlink/?linkid=2083908
---
--- also be aware to find the right client id.
--- see https://stackoverflow.com/a/70670961
-defaultAzureADApp :: IdpApplication 'AuthorizationCode AzureAD
-defaultAzureADApp =
+defaultAzureOAuthADApp :: IdpApplication 'AuthorizationCode AzureAD
+defaultAzureOAuthADApp =
   AuthorizationCodeIdpApplication
     { idpAppClientId = ""
     , idpAppClientSecret = ""

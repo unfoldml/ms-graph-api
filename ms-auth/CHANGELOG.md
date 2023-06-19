@@ -8,4 +8,6 @@ and this project adheres to the
 
 ## Unreleased
 
-## 0.1.0.0 - YYYY-MM-DD
+## 0.1.0.0
+
+Network.OAuth2.Session : Add App-only functionality

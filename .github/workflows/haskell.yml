@@ -28,10 +28,10 @@ jobs:
       - name: (ms-azure-api) Setup compiler, build and test
         working-directory: ./ms-azure-api
         run: |
-          stack build --resolver ${{ matrix.stack-resolver }}
+          stack build --no-install-ghc
           stack test
       - name: (ms-auth) Setup compiler, build and test
         working-directory: ./ms-auth
         run: |
-          stack build --resolver ${{ matrix.stack-resolver }}
+          stack build --no-install-ghc
           stack test
