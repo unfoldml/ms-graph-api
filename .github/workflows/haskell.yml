@@ -20,39 +20,18 @@ jobs:
     steps:
       - name: git checkout
         uses: actions/checkout@v3
-      - name: Setup compiler, build and test
+      - name: ms-graph-api : Setup compiler, build and test
+        working-directory: ./ms-graph-api
         run: |
           stack build --resolver ${{ matrix.stack-resolver }}
           stack test
-
-      # - name: Setup Haskell tools
-      #   uses: haskell/actions/setup@v2
-      #   with:
-      #     ghc-version: ${{ matrix.ghc-version }}
-      #     # cabal-version: 'latest'. Omitted, but defaults to 'latest'
-      #     enable-stack: true
-      #     stack-setup-ghc: true # Runs stack setup to install the specified GHC. 
-      #     stack-no-global: true # Prevents installing GHC and Cabal globally.
-      #     stack-version: 'latest'
-      # - name: Stack build and test
-      #   run: |
-      #     stack build --system-ghc --no-install-ghc
-      #     stack test
-
-  # ci:
-  #   name: CI
-  #   runs-on: ubuntu-latest # or macOS-latest, or windows-latest
-  #   steps:
-  #     - name: git checkout
-  #       uses: actions/checkout@v3
-  #     - name: Setup tools
-  #       uses: haskell/actions/setup@v2
-  #       with:
-  #         ghc-version: '8.8.4' # Exact version of ghc to use
-  #         # cabal-version: 'latest'. Omitted, but defaults to 'latest'
-  #         enable-stack: true
-  #         stack-version: 'latest'
-  #     - name: stack build and test
-  #       run: |
-  #         stack build
-  #         stack test
+      - name: ms-azure-api : Setup compiler, build and test
+        working-directory: ./ms-azure-api
+        run: |
+          stack build --resolver ${{ matrix.stack-resolver }}
+          stack test
+      - name: ms-auth : Setup compiler, build and test
+        working-directory: ./ms-auth
+        run: |
+          stack build --resolver ${{ matrix.stack-resolver }}
+          stack test

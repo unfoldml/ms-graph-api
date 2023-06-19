@@ -13,9 +13,9 @@ and this project adheres to the
 
 MSGraphAPI.ChangeNotifications.Subscription
 
-== Breaking changes:
+*Breaking changes*
 
-Moved the Network/* module hierarchy to the @ms-auth@ package shared with @ms-azure-api@
+Moved the Network/* module hierarchy to the `ms-auth` package shared with `ms-azure-api`.
 
 
 ## 0.6.0.0
