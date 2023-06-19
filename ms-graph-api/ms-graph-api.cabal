@@ -1,5 +1,5 @@
 name:                ms-graph-api
-version:             0.6.0.0
+version:             1.0.0.0
 synopsis:            Microsoft Graph API
 description:         Bindings to the Microsoft Graph API
 homepage:            https://github.com/unfoldml/ms-graph-api
@@ -24,32 +24,21 @@ library
                        MSGraphAPI.Users.Group
                        MSGraphAPI.Drive
                        MSGraphAPI.Files.DriveItem
-                       Network.OAuth2.Provider.AzureAD
-                       Network.OAuth2.Session
                        MSGraphAPI.Internal.Common
-  other-modules:       
-                       MSGraphAPI.Auth
-                       Network.OAuth2.JWT
+  other-modules:       MSGraphAPI.Auth
   build-depends:       base >= 4.7 && < 5
                      , aeson
                      , bytestring
                      , containers
                      , hoauth2 == 2.6.0
-                     , http-client
                      , http-types
-                     , jwt
                      , modern-uri
                      , req
                      , scientific
-                     , scotty
                      , text
                      , time >= 1.8
                      , transformers >= 0.5
                      , unliftio
-                     , uri-bytestring
-                     , validation-micro
-                     , wai
-                     , warp
   ghc-options:         -Wall
                        -Wcompat
                        -Wno-unused-imports

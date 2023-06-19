@@ -50,7 +50,6 @@ import Data.Text (Text, pack, unpack)
 import UnliftIO (MonadUnliftIO(..))
 import UnliftIO.Exception (try)
 
-import Network.OAuth2.Session (Tokens)
 
 
 -- | Specialized version of 'try' to 'HttpException's
