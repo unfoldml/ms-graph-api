@@ -21,17 +21,19 @@ jobs:
       - name: git checkout
         uses: actions/checkout@v3
       - name: (ms-graph-api) Setup compiler, build and test
-        working-directory: ./ms-graph-api
+        # working-directory: ./ms-graph-api
         run: |
+          cd ms-azure-api/
+
           stack build --resolver ${{ matrix.stack-resolver }}
           stack test
-      - name: (ms-azure-api) Setup compiler, build and test
-        working-directory: ./ms-azure-api
-        run: |
+
+          cd ../ms-graph-api/
+
           stack build --no-install-ghc
           stack test
-      - name: (ms-auth) Setup compiler, build and test
-        working-directory: ./ms-auth
-        run: |
+
+          cd ../ms-auth/
+
           stack build --no-install-ghc
           stack test
