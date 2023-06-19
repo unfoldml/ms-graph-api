@@ -17,7 +17,7 @@ import MSGraphAPI.Files.DriveItem (DriveItem)
 
 -- | Groups are collections of principals with shared access to resources in Microsoft services or in your app. Different principals such as users, other groups, devices, and applications can be part of groups. 
 --
--- httpstea://learn.microsoft.com/en-us/graph/api/resources/groups-overview?view=graph-rest-1.0&tabs=http
+-- https://learn.microsoft.com/en-us/graph/api/resources/groups-overview?view=graph-rest-1.0&tabs=http
 data Group = Group {
   gId :: Text
   , gDisplayName :: Text

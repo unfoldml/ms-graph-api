@@ -8,7 +8,16 @@ and this project adheres to the
 
 ## Unreleased
 
+MSGraphAPI.ChangeNotifications.Subscription :
+
+
+
 ## 0.6.0.0
+
+MSGraphAPI.Users.Group :
+- Group
+- getUserJoinedTeams
+- getGroupsDriveItems
 
 Depend on `validation-micro` rather than `validation-selective`.
 
