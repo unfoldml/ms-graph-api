@@ -20,7 +20,7 @@ jobs:
     steps:
       - name: git checkout
         uses: actions/checkout@v3
-      - name: (ms-graph-api) Setup compiler, build and test
+      - name: Setup compiler, build and test
         # working-directory: ./ms-graph-api
         run: |
           cd ms-azure-api/
