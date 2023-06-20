@@ -20,6 +20,7 @@ library
   hs-source-dirs:      src
   exposed-modules:     MSAzureAPI.Internal.Common
                        MSAzureAPI.StorageServices
+                       MSAzureAPI.StorageServices.FileService
   build-depends:       base >= 4.7 && < 5
                      , aeson
                      , bytestring

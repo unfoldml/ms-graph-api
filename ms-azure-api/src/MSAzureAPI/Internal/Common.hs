@@ -61,6 +61,8 @@ tryReq :: Req a -> Req (Either HttpException a)
 tryReq = try
 
 -- | API control planes
+--
+-- https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/control-plane-and-data-plane
 data APIPlane = APManagement -- ^ Management plane (@management.azure.com@ endpoints)
               | APData Text -- ^ Data plane e.g. FileREST API
 
@@ -92,10 +94,10 @@ msAzureReqConfig :: APIPlane
                  -> (Url 'Https, Option 'Https)
 msAzureReqConfig apiplane uriRest (AccessToken ttok) = (url, os)
   where
-    urlBase = \case
+    urlBase = case apiplane of
       APManagement -> "management.azure.com"
       APData ub -> ub
-    url = (https $ urlBase apiplane) //: uriRest
+    url = (https urlBase) //: uriRest
     os = oAuth2Bearer $ BS8.pack (unpack ttok)
 
 
