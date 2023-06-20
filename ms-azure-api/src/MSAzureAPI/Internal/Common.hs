@@ -44,8 +44,10 @@ import UnliftIO (MonadUnliftIO(..))
 import UnliftIO.Exception (try)
 
 
+-- | @GET@ a 'LBS.ByteString' e.g. a file
 getLbs :: APIPlane
-       -> [Text] -> Option 'Https -> AccessToken -> Req LBS.ByteString
+       -> [Text] -- ^ URI path segments
+       -> Option 'Https -> AccessToken -> Req LBS.ByteString
 getLbs apiplane paths params tok = responseBody <$> req GET url NoReqBody lbsResponse opts
   where
     opts = auth <> params
