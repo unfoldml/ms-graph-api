@@ -5,12 +5,16 @@
 {-# options_ghc -Wno-unused-imports #-}
 -- | MS Identity user session based on OAuth tokens
 --
--- provides both Authorization Code Grant flow (user-based) and App-only (e.g. server-server and automation accounts)
+-- The library supports the following authentication scenarios :
+--
+-- * [Client Credentials](https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-client-creds-grant-flow) (server/server or automation accounts)
+--
+-- * [Authorization Code](https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow) (with human users being prompted to delegate some access rights to the app)
+--
+-- and provides functions to keep tokens up to date in the background.
 module Network.OAuth2.Session (
-  -- * Azure App Service
-  withAADUser
   -- * App-only flow
-  , Token
+  Token
   , newNoToken
   , expireToken
   , readToken
@@ -27,6 +31,8 @@ module Network.OAuth2.Session (
   , expireUser
   , tokensToList
   -- * Scotty misc
+  -- ** Azure App Service
+  , withAADUser
   , Scotty
   , Action
                               ) where
@@ -137,7 +143,7 @@ type Token t = TVar (Maybe t)
 
 newNoToken :: MonadIO m => m (Token t)
 newNoToken = newTVarIO Nothing
-expireToken :: MonadIO m => TVar (Maybe a) -> m ()
+expireToken :: MonadIO m => Token t -> m ()
 expireToken ts = atomically $ modifyTVar ts (const Nothing)
 readToken :: MonadIO m => Token t -> m (Maybe t)
 readToken ts = atomically $ readTVar ts
@@ -149,7 +155,7 @@ readToken ts = atomically $ readTVar ts
 -- https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-client-creds-grant-flow
 fetchUpdateToken :: MonadIO m =>
                     IdpApplication 'ClientCredentials AzureAD
-                 -> Token OAuth2Token
+                 -> Token OAuth2Token -- ^ token TVar
                  -> Manager
                  -> m ()
 fetchUpdateToken idpApp ts mgr = liftIO $ void $ forkFinally loop cleanup
@@ -204,7 +210,7 @@ loginH idpApp = do
 -- NB : forks a thread per logged in user to keep their tokens up to date
 replyEndpoint :: MonadIO m =>
                  IdpApplication 'AuthorizationCode AzureAD
-              -> Tokens UserSub OAuth2Token
+              -> Tokens UserSub OAuth2Token -- ^ token TVar
               -> Manager
               -> RoutePattern -- ^ e.g. @"/oauth\/reply"@
               -> Scotty m ()
