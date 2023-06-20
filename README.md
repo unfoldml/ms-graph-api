@@ -1,6 +1,8 @@
 # ms-api
 
-Haskell SDK for the Microsoft APIs:
+[![ms-graph-api-CI](https://github.com/unfoldml/ms-graph-api/actions/workflows/haskell.yml/badge.svg)](https://github.com/unfoldml/ms-graph-api/actions/workflows/haskell.yml)
+
+Haskell SDK for the Microsoft APIs
 
 | Service  | Release |
 |---|---|
