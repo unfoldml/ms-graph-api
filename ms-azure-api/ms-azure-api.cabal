@@ -1,8 +1,8 @@
 name:                ms-azure-api
 version:             0.1.0.0
--- synopsis:
--- description:
-homepage:            https://github.com/unfoldml/ms-azure-api
+synopsis:            Microsoft Azure API
+description:         Bindings to the Microsoft Azure API
+homepage:            https://github.com/unfoldml/ms-api
 license:             BSD3
 license-file:        LICENSE
 author:              Marco Zocca

@@ -2,7 +2,7 @@ name:                ms-graph-api
 version:             1.0.0.0
 synopsis:            Microsoft Graph API
 description:         Bindings to the Microsoft Graph API
-homepage:            https://github.com/unfoldml/ms-graph-api
+homepage:            https://github.com/unfoldml/ms-api
 license:             BSD3
 license-file:        LICENSE
 author:              Marco Zocca

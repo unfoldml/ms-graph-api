@@ -9,7 +9,15 @@ Haskell SDK for the Microsoft APIs:
 | Azure | [![Hackage](https://img.shields.io/hackage/v/ms-azure-api?style=for-the-badge)](https://hackage.haskell.org/package/ms-azure-api) |
 
 
+## Introduction
 
+We provide separate libraries for authentication (`ms-auth`), Graph (`ms-graph-api`) and Azure (`ms-azure-api`) since they cater to different use cases; they are designed to work together at any rate. 
+
+In the majority of cases a user will want to install `ms-auth` as well as the API binding they need (unsure whether Azure or Graph allow anonymous usage of any of their endpoints).
+
+## Examples
+
+* OAuth flow : see `ms-graph-api-test/app/Main.hs` 
 
 ## Status
 
@@ -24,6 +32,7 @@ Some breaking changes might also be introduced as the library matures.
 
 We adhere to a simplified version of the [Package Versioning Policy](https://pvp.haskell.org/): breaking changes are signaled by increasing the major version number (e.g. 0.x -> 1.x ).
 
+Significant changes in the SDK will be documented in the respective CHANGELOG.
 
 ## LICENSE
 
