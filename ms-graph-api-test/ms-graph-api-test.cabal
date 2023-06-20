@@ -1,0 +1,60 @@
+name:                ms-graph-api-test
+version:             0.1.0.0
+-- synopsis:
+-- description:
+homepage:            https://github.com/unfoldml/ms-api
+license:             BSD3
+license-file:        LICENSE
+author:              Marco Zocca
+maintainer:          oss@unfoldml.com
+copyright:           2023 Marco Zocca
+category:            API
+build-type:          Simple
+extra-source-files:  README.md
+                     CHANGELOG.md
+cabal-version:       >=1.10
+tested-with:         GHC == 9.2.7
+
+library
+  default-language:    Haskell2010
+  hs-source-dirs:      src
+  exposed-modules:     Lib
+  build-depends:       base >= 4.7 && < 5
+  ghc-options:         -Wall
+                       -Wcompat
+                       -Widentities
+                       -Wincomplete-record-updates
+                       -Wincomplete-uni-patterns
+                       -Wmissing-export-lists
+                       -Wmissing-home-modules
+                       -Wpartial-fields
+                       -Wredundant-constraints
+
+executable ms-graph-api-test
+  default-language:    Haskell2010
+  hs-source-dirs:      app
+  main-is:             Main.hs
+  build-depends:       base
+                     , hoauth2 == 2.6.0
+                     , http-client
+                     , http-client-tls >= 0.3
+                     , ms-graph-api
+                     , ms-graph-api-test
+                     , ms-auth >= 0.2
+                     , req
+                     , scotty
+                     , text >= 1.2.5.0
+                     , transformers >= 0.5.6.2
+                     , unliftio
+                     , uri-bytestring
+                     , wai-extra >= 3.1.13.0
+  ghc-options:         -Wall
+                       -threaded
+                       -rtsopts
+                       -with-rtsopts=-N
+
+
+
+source-repository head
+  type:     git
+  location: https://github.com/githubuser/ms-graph-api-test
