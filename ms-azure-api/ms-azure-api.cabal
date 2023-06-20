@@ -1,5 +1,5 @@
 name:                ms-azure-api
-version:             0.2.0.0
+version:             0.2.0.1
 synopsis:            Microsoft Azure API
 description:         Bindings to the Microsoft Azure API
 homepage:            https://github.com/unfoldml/ms-graph-api
@@ -35,7 +35,7 @@ library
                      , transformers >= 0.5
                      , unliftio
                      , xeno
-                     , xmlbf
+                     , xmlbf < 0.7
                      , xmlbf-xeno
   ghc-options:         -Wall
                        -Wcompat
