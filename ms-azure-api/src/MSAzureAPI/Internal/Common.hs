@@ -2,7 +2,17 @@
 {-# options_ghc -Wno-unused-imports #-}
 -- | Common functions for the MS Azure API
 --
-module MSAzureAPI.Internal.Common where
+module MSAzureAPI.Internal.Common (
+  APIPlane(..)
+  , get
+  , getLbs
+  , post
+  -- ** Helpers
+  , tryReq
+  -- ** JSON
+  , Collection
+  , aesonOptions
+  ) where
 
 import Control.Monad.IO.Class (MonadIO(..))
 import Data.Proxy (Proxy)
@@ -29,17 +39,64 @@ import Network.OAuth.OAuth2.Internal (AccessToken(..), ExchangeToken(..), Refres
 import Network.HTTP.Req (Req, runReq, HttpException(..), defaultHttpConfig, req, Option, (=:), GET(..), POST(..), Url, Scheme(..), useHttpsURI, https, (/:), ReqBodyJson(..), NoReqBody(..), oAuth2Bearer, HttpResponse(..), jsonResponse, JsonResponse, lbsResponse, LbsResponse, bsResponse, BsResponse, responseBody)
 -- text
 import Data.Text (Text, pack, unpack)
+-- unliftio
+import UnliftIO (MonadUnliftIO(..))
+import UnliftIO.Exception (try)
 
 
-
--- | Data plane e.g for FileREST API
-
--- | Control plane
-msAzureManagementReqConfig :: AccessToken -> [Text] -> (Url 'Https, Option 'Https)
-msAzureManagementReqConfig (AccessToken ttok) uriRest = (url, os)
+getLbs :: APIPlane
+       -> [Text] -> Option 'Https -> AccessToken -> Req LBS.ByteString
+getLbs apiplane paths params tok = responseBody <$> req GET url NoReqBody lbsResponse opts
   where
-    url = (https "management.azure.com") //: uriRest
+    opts = auth <> params
+    (url, auth) = msAzureReqConfig apiplane paths tok
+
+
+-- | Specialized version of 'try' to 'HttpException's
+--
+-- This can be used to catch exceptions of composite 'Req' statements, e.g. around a @do@ block
+tryReq :: Req a -> Req (Either HttpException a)
+tryReq = try
+
+-- | API control planes
+data APIPlane = APManagement -- ^ Management plane (@management.azure.com@ endpoints)
+              | APData Text -- ^ Data plane e.g. FileREST API
+
+-- | @POST@
+post :: (A.FromJSON b, A.ToJSON a) =>
+        APIPlane
+     -> [Text] -- ^ URI path segments
+     -> Option 'Https
+     -> a -- ^ request body
+     -> AccessToken -> Req b
+post apiplane paths params bdy tok = responseBody <$> req POST url (ReqBodyJson bdy) jsonResponse opts
+  where
+    opts = auth <> params
+    (url, auth) = msAzureReqConfig apiplane paths tok
+
+-- | @GET@
+get :: (A.FromJSON b) =>
+       APIPlane
+    -> [Text] -- ^ URI path segments
+    -> Option 'Https -> AccessToken -> Req b
+get apiplane paths params tok = responseBody <$> req GET url NoReqBody jsonResponse opts
+  where
+    opts = auth <> params
+    (url, auth) = msAzureReqConfig apiplane paths tok
+
+msAzureReqConfig :: APIPlane
+                 -> [Text] -- ^ URI path segments
+                 -> AccessToken
+                 -> (Url 'Https, Option 'Https)
+msAzureReqConfig apiplane uriRest (AccessToken ttok) = (url, os)
+  where
+    urlBase = \case
+      APManagement -> "management.azure.com"
+      APData ub -> ub
+    url = (https $ urlBase apiplane) //: uriRest
     os = oAuth2Bearer $ BS8.pack (unpack ttok)
+
+
 
 (//:) :: Url scheme -> [Text] -> Url scheme
 (//:) = foldl (/:)
