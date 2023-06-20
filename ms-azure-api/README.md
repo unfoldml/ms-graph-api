@@ -11,7 +11,7 @@ Haskell client bindings to the [Microsoft Azure API]().
 
 This library provides the client interface (under the `MSAzureAPI` namespace).
 
-Authentication can be implemented with the @ms-auth@ library.
+Authentication can be implemented with the `ms-auth` library.
 
 ## Status
 

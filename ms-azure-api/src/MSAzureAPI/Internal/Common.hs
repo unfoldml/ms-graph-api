@@ -5,8 +5,11 @@
 module MSAzureAPI.Internal.Common (
   APIPlane(..)
   , get
+  , getBs
   , getLbs
   , post
+  -- ** URL parameters
+  , (==:)
   -- ** Helpers
   , tryReq
   -- ** JSON
@@ -43,12 +46,26 @@ import Data.Text (Text, pack, unpack)
 import UnliftIO (MonadUnliftIO(..))
 import UnliftIO.Exception (try)
 
+-- | URL parameters
+(==:) :: Text -- ^ key
+      -> Text -- ^ value
+      -> Option 'Https
+(==:) = (=:)
 
 -- | @GET@ a 'LBS.ByteString' e.g. a file
 getLbs :: APIPlane
        -> [Text] -- ^ URI path segments
        -> Option 'Https -> AccessToken -> Req LBS.ByteString
 getLbs apiplane paths params tok = responseBody <$> req GET url NoReqBody lbsResponse opts
+  where
+    opts = auth <> params
+    (url, auth) = msAzureReqConfig apiplane paths tok
+
+-- | @GET@ a 'BS.ByteString' e.g. a file
+getBs :: APIPlane
+      -> [Text] -- ^ URI path segments
+      -> Option 'Https -> AccessToken -> Req BS.ByteString
+getBs apiplane paths params tok = responseBody <$> req GET url NoReqBody bsResponse opts
   where
     opts = auth <> params
     (url, auth) = msAzureReqConfig apiplane paths tok

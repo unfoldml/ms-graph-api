@@ -5,7 +5,7 @@
 {-# options_ghc -Wno-unused-imports #-}
 -- | MS Identity user session based on OAuth tokens
 --
--- provides both Delegated permission flow (user-based) and App-only (e.g. server-server and automation accounts)
+-- provides both Authorization Code Grant flow (user-based) and App-only (e.g. server-server and automation accounts)
 module Network.OAuth2.Session (
   -- * Azure App Service
   withAADUser
@@ -15,7 +15,7 @@ module Network.OAuth2.Session (
   , expireToken
   , readToken
   , fetchUpdateToken
-  -- * Delegated permissions flow
+  -- * Auth code grant flow
   -- ** OAuth endpoints
   , loginEndpoint
   , replyEndpoint
@@ -132,8 +132,7 @@ withAADUser ts loginURI act = aadHeaderIdToken $ \usub -> do
 
 -- * App-only authorization scenarios (i.e via automation accounts. Human users not involved)
 
-
--- app has one token at a time
+-- | App has (at most) one token at a time
 type Token t = TVar (Maybe t)
 
 newNoToken :: MonadIO m => m (Token t)
@@ -181,7 +180,7 @@ updateToken ts oat = do
 
 
 
--- * Delegated permission flow (i.e. human user involved)
+-- * Auth code grant flow (i.e. human user involved)
 
 -- | Login endpoint
 --
@@ -224,7 +223,7 @@ replyH idpApp ts mgr = do
          Just codeP -> do
            let
              etoken = ExchangeToken $ TL.toStrict codeP
-           _ <- fetchUpdateTokenDeleg ts idpApp mgr etoken
+           _ <- fetchUpdateTokenACG ts idpApp mgr etoken
            pure ()
          Nothing -> throwE OASEExchangeTokenNotFound
 
@@ -239,13 +238,13 @@ replyH idpApp ts mgr = do
 
 -- | 1) the ExchangeToken arrives with the redirect once the user has approved the scopes in the browser
 -- https://learn.microsoft.com/en-us/graph/auth-v2-user?view=graph-rest-1.0&tabs=http#authorization-response
-fetchUpdateTokenDeleg :: MonadIO m =>
+fetchUpdateTokenACG :: MonadIO m =>
                          Tokens UserSub OAuth2Token
                       -> IdpApplication 'AuthorizationCode AzureAD
                       -> Manager
                       -> ExchangeToken -- ^ also called 'code'. Expires in 10 minutes
                       -> ExceptT OAuthSessionError m OAuth2Token
-fetchUpdateTokenDeleg ts idpApp mgr etoken = ExceptT $ do
+fetchUpdateTokenACG ts idpApp mgr etoken = ExceptT $ do
   tokenResp <- runExceptT $ conduitTokenRequest idpApp mgr etoken -- OAuth2 token
   case tokenResp of
     Right oat -> case idToken oat of
@@ -254,20 +253,20 @@ fetchUpdateTokenDeleg ts idpApp mgr etoken = ExceptT $ do
         idtClaimsE <- decValidIdToken idt -- decode and validate ID token
         case idtClaimsE of
           Right uid -> do
-            _ <- refreshLoopDeleg ts idpApp mgr uid oat -- fork a thread and start refresh loop for this user
+            _ <- refreshLoopACG ts idpApp mgr uid oat -- fork a thread and start refresh loop for this user
             pure $ Right oat
           Left es -> pure $ Left (OASEJWTException es) -- id token validation failed
     Left es -> pure $ Left (OASEOAuth2Errors es)
 
 -- | 2) fork a thread and start token refresh loop for user @uid@
-refreshLoopDeleg :: (MonadIO m, Ord uid, HasRefreshTokenRequest a) =>
+refreshLoopACG :: (MonadIO m, Ord uid, HasRefreshTokenRequest a) =>
                     Tokens uid OAuth2Token
                  -> IdpApplication a i
                  -> Manager
                  -> uid -- ^ user ID
                  -> OAuth2Token
                  -> m ThreadId
-refreshLoopDeleg ts idpApp mgr uid oaToken = liftIO $ forkFinally (act oaToken) cleanup
+refreshLoopACG ts idpApp mgr uid oaToken = liftIO $ forkFinally (act oaToken) cleanup
   where
     cleanup = \case
       Left _ -> do

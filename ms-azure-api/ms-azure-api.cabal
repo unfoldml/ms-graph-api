@@ -1,8 +1,8 @@
 name:                ms-azure-api
-version:             0.1.0.0
+version:             0.2.0.0
 synopsis:            Microsoft Azure API
 description:         Bindings to the Microsoft Azure API
-homepage:            https://github.com/unfoldml/ms-api
+homepage:            https://github.com/unfoldml/ms-graph-api
 license:             BSD3
 license-file:        LICENSE
 author:              Marco Zocca
@@ -34,6 +34,9 @@ library
                      , time >= 1.8
                      , transformers >= 0.5
                      , unliftio
+                     , xeno
+                     , xmlbf
+                     , xmlbf-xeno
   ghc-options:         -Wall
                        -Wcompat
                        -Wno-unused-imports
@@ -47,4 +50,4 @@ library
 
 source-repository head
   type:     git
-  location: https://github.com/unfoldml/ms-azure-api
+  location: https://github.com/unfoldml/ms-graph-api

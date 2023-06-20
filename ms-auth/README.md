@@ -9,7 +9,12 @@ Haskell client bindings to the [Microsoft Identity / Active Directory API]().
 
 ## Introduction
 
-This library provides helpers for building token-based authentication flows e.g. Client Credentials (App-only) and On-Behalf-Of (Delegated), as well as for keeping tokens up to date in the background.
+This library provides helpers for building token-based authentication flows within server-based web apps e.g. 
+
+* [Client Credentials](https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-client-creds-grant-flow) (server/server or automation accounts)
+* [Authorization Code](https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow) (with human users being prompted to delegate some access rights to the app)
+
+, as well as for keeping tokens up to date in the background.
 
 
 ## Status

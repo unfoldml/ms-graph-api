@@ -8,6 +8,12 @@ and this project adheres to the
 
 ## Unreleased
 
+## 0.2
+
+MSAzureAPI.StorageServices.FileService. listDirectoriesAndFiles
+
+Add XML support via `xeno` and `xmlbf` to parse `listDirectoriesAndFiles` response bodies
+
 ## 0.1.0.0
 
 First release
