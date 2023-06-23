@@ -11,9 +11,7 @@
 
 ## Introduction
 
-We provide separate libraries for authentication (`ms-auth`), Graph (`ms-graph-api`) and Azure (`ms-azure-api`) since they cater to different use cases; they are designed to work together at any rate. 
-
-In the majority of cases a user will want to install `ms-auth` as well as the API binding they need (unsure whether Azure or Graph allow anonymous usage of any of their endpoints).
+We provide separate libraries for authentication (`ms-auth`), Graph (`ms-graph-api`) and Azure (`ms-azure-api`) since they cater to different use cases; a typical use case will need to import  `ms-auth` as well as the API binding they need (it's unclear whether Azure or Graph allow anonymous usage of any of their endpoints).
 
 ## Examples
 
