@@ -5,8 +5,8 @@
 | Service  | Package name | Release |
 |---|---|---|
 | [Identity / Active Directory](https://learn.microsoft.com/en-us/graph/azuread-identity-access-management-concept-overview) | `ms-auth` | [![Hackage](https://img.shields.io/hackage/v/ms-auth?style=for-the-badge)](https://hackage.haskell.org/package/ms-auth) |
-| [Graph](https://learn.microsoft.com/en-us/graph/api/overview?view=graph-rest-1.0) | `ms-graph-api` | [![Hackage](https://img.shields.io/hackage/v/ms-graph-api?style=for-the-badge)](https://hackage.haskell.org/package/ms-graph-api) | `ms-azure-api` |
-| [Azure](https://learn.microsoft.com/en-us/rest/api/azure/) | [![Hackage](https://img.shields.io/hackage/v/ms-azure-api?style=for-the-badge)](https://hackage.haskell.org/package/ms-azure-api) |
+| [Graph](https://learn.microsoft.com/en-us/graph/api/overview?view=graph-rest-1.0) | `ms-graph-api` | [![Hackage](https://img.shields.io/hackage/v/ms-graph-api?style=for-the-badge)](https://hackage.haskell.org/package/ms-graph-api) | 
+| [Azure](https://learn.microsoft.com/en-us/rest/api/azure/) | `ms-azure-api` |[![Hackage](https://img.shields.io/hackage/v/ms-azure-api?style=for-the-badge)](https://hackage.haskell.org/package/ms-azure-api) |
 
 
 ## Introduction
