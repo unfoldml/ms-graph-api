@@ -9,14 +9,16 @@ and this project adheres to the
 ## Unreleased
 
 
-## 1.0.0.0
 
-MSGraphAPI.ChangeNotifications.Subscription
+
+## 0.7.0.0
+
+MSGraphAPI.ChangeNotifications.Subscription:
+- add createSubscription
 
 *Breaking changes*
 
 Moved the Network/* module hierarchy to the `ms-auth` package shared with `ms-azure-api`.
-
 
 ## 0.6.0.0
 
