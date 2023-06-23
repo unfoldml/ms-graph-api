@@ -25,7 +25,9 @@ This library is functional but still in development.
 
 Some breaking changes might also be introduced as the library matures.
 
-We adhere to a simplified version of the [Package Versioning Policy](https://pvp.haskell.org/): breaking changes are signaled by increasing the major version number (e.g. 0.x -> 1.x ).
+We adhere to the [Package Versioning Policy](https://pvp.haskell.org/): major breaking changes or API refactors are signaled by increasing the first major version number (i.e. 0.0.0.0 -> 1.0.0.0 ) whereas less significant ones are indicated by increasing the second one (0.0.0.0 -> 0.1.0.0).
+
+Significant changes in the SDK will be documented in the respective CHANGELOG.
 
 
 ## Copyright

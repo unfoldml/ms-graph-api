@@ -1,13 +1,11 @@
-# ms-api
+# Haskell SDK for the Microsoft APIs
 
-[![ms-graph-api-CI](https://github.com/unfoldml/ms-graph-api/actions/workflows/haskell.yml/badge.svg)](https://github.com/unfoldml/ms-graph-api/actions/workflows/haskell.yml)
+[![CI](https://github.com/unfoldml/ms-graph-api/actions/workflows/haskell.yml/badge.svg)](https://github.com/unfoldml/ms-graph-api/actions/workflows/haskell.yml)
 
-Haskell SDK for the Microsoft APIs
-
-| Service  | Release |
-|---|---|
-| [Identity / Active Directory](https://learn.microsoft.com/en-us/graph/azuread-identity-access-management-concept-overview) | [![Hackage](https://img.shields.io/hackage/v/ms-auth?style=for-the-badge)](https://hackage.haskell.org/package/ms-auth) |
-| [Graph](https://learn.microsoft.com/en-us/graph/api/overview?view=graph-rest-1.0) | [![Hackage](https://img.shields.io/hackage/v/ms-graph-api?style=for-the-badge)](https://hackage.haskell.org/package/ms-graph-api) |
+| Service  | Package name | Release |
+|---|---|---|
+| [Identity / Active Directory](https://learn.microsoft.com/en-us/graph/azuread-identity-access-management-concept-overview) | `ms-auth` | [![Hackage](https://img.shields.io/hackage/v/ms-auth?style=for-the-badge)](https://hackage.haskell.org/package/ms-auth) |
+| [Graph](https://learn.microsoft.com/en-us/graph/api/overview?view=graph-rest-1.0) | `ms-graph-api` | [![Hackage](https://img.shields.io/hackage/v/ms-graph-api?style=for-the-badge)](https://hackage.haskell.org/package/ms-graph-api) | `ms-azure-api` |
 | [Azure](https://learn.microsoft.com/en-us/rest/api/azure/) | [![Hackage](https://img.shields.io/hackage/v/ms-azure-api?style=for-the-badge)](https://hackage.haskell.org/package/ms-azure-api) |
 
 
@@ -32,7 +30,7 @@ In general, since the API surface is quite large, features will be added to this
 
 Some breaking changes might also be introduced as the library matures.
 
-We adhere to a simplified version of the [Package Versioning Policy](https://pvp.haskell.org/): breaking changes are signaled by increasing the major version number (e.g. 0.x -> 1.x ).
+We adhere to the [Package Versioning Policy](https://pvp.haskell.org/): major breaking changes or API refactors are signaled by increasing the first major version number (i.e. 0.0.0.0 -> 1.0.0.0 ) whereas less significant ones are indicated by increasing the second one (0.0.0.0 -> 0.1.0.0).
 
 Significant changes in the SDK will be documented in the respective CHANGELOG.
 
