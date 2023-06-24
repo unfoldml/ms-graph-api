@@ -55,8 +55,13 @@ createJob sid rgid wsid jid =
                     "workspaces", wsid,
                     "jobs", jid] ("api-version" MSA.==: "2023-04-01")
 
-data JobBase = JB {
-  jbTODO :: Text
-  } deriving (Eq, Show, Generic)
+-- | JobBase type
+--
+-- https://learn.microsoft.com/en-us/rest/api/azureml/2023-04-01/jobs/create-or-update?tabs=HTTP
+data JobBase = JBAutoMLJob -- ^ https://learn.microsoft.com/en-us/rest/api/azureml/2023-04-01/jobs/list?tabs=HTTP#automljob
+             | JBCommandJob
+             | JBPipelineJob
+             | JBSweepJob
+             deriving (Eq, Show, Generic)
 instance A.ToJSON JobBase where
   toEncoding = A.genericToEncoding (MSA.aesonOptions "jb")
