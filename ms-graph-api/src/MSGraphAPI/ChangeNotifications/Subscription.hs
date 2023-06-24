@@ -1,3 +1,8 @@
+-- | Subscription to change notifications through webhooks
+--
+-- see <https://learn.microsoft.com/en-us/graph/webhooks#supported-resources> for a list of resources that can produce change notifications
+--
+-- see <https://learn.microsoft.com/en-us/graph/change-notifications-delivery-webhooks?tabs=http> for protocol details
 module MSGraphAPI.ChangeNotifications.Subscription where
 
 import Data.List.NonEmpty (NonEmpty)
@@ -14,11 +19,31 @@ import Network.HTTP.Req (Req)
 import Data.Text (Text, pack, unpack)
 -- time
 import Data.Time (LocalTime)
+-- import Data.UUID.Types (UUID)
 
 import qualified MSGraphAPI.Internal.Common as MSG (Collection(..), get, post, aesonOptions)
 import MSGraphAPI.Files.DriveItem (DriveItem)
 
--- | Creating a subscription requires read scope to the resource. For example, to get change notifications on messages, your app needs the Mail.Read permission.
+-- | Represents the notification sent to the subscriber. https://learn.microsoft.com/en-us/graph/api/resources/changenotification?view=graph-rest-1.0
+--
+-- 
+data ChangeNotification a = ChangeNotification {
+  cnChangeType :: ChangeType
+  , cnClientState :: Text
+  , cnId :: Text
+  , cnResource :: Text
+  , cnResourceData :: Maybe a
+  , cnSubscriptionId :: Text
+  , cnTenantId :: Text
+                                             } deriving (Eq, Show, Generic)
+instance A.FromJSON a => A.FromJSON (ChangeNotification a) where
+  parseJSON = A.genericParseJSON (MSG.aesonOptions "cn")
+
+-- | Create a subscription https://learn.microsoft.com/en-us/graph/api/subscription-post-subscriptions?view=graph-rest-1.0&tabs=http
+--
+-- @ POST https:\/\/graph.microsoft.com\/v1.0\/subscriptions@
+--
+-- Creating a subscription requires read scope to the resource. For example, to get change notifications on messages, your app needs the @Mail.Read@ permission.
 createSubscription :: (A.FromJSON b) => Subscription -> AccessToken -> Req b
 createSubscription = MSG.post ["subscriptions"] mempty
 
@@ -31,7 +56,7 @@ data Subscription = Subscription {
   , cnsClientState :: Text
   , cnsExpirationDateTime :: LocalTime
   , cnsNotificationUrl :: Text -- ^ The URL of the endpoint that will receive the change notifications. This URL must make use of the HTTPS protocol. Any query string parameter included in the notificationUrl property will be included in the HTTP POST request when Microsoft Graph sends the change notifications.
-  , cnsResource :: Text -- ^ Specifies the resource that will be monitored for changes. Do not include the base URL (https://graph.microsoft.com/v1.0/)
+  , cnsResource :: Text -- ^ Specifies the resource that will be monitored for changes. Do not include the base URL (@https:\/\/graph.microsoft.com\/v1.0\/@)
   , cnsLatestSupportedTLSVersion :: LatestTLSVer
                    } deriving (Eq, Show, Generic)
 instance A.FromJSON Subscription where

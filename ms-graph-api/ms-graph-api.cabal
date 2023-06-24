@@ -1,8 +1,8 @@
 name:                ms-graph-api
-version:             0.7.0.0
+version:             0.8.0.0
 synopsis:            Microsoft Graph API
 description:         Bindings to the Microsoft Graph API
-homepage:            https://github.com/unfoldml/ms-api
+homepage:            https://github.com/unfoldml/ms-graph-api
 license:             BSD3
 license-file:        LICENSE
 author:              Marco Zocca
@@ -24,8 +24,7 @@ library
                        MSGraphAPI.Users.Group
                        MSGraphAPI.Drive
                        MSGraphAPI.Files.DriveItem
-                       MSGraphAPI.Internal.Common
-  other-modules:       MSGraphAPI.Auth
+  other-modules:       MSGraphAPI.Internal.Common
   build-depends:       base >= 4.7 && < 5
                      , aeson
                      , bytestring
