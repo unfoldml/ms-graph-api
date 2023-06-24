@@ -4,6 +4,7 @@
 --
 module MSAzureAPI.Internal.Common (
   APIPlane(..)
+  , put
   , get
   , getBs
   , getLbs
@@ -83,11 +84,23 @@ tryReq = try
 data APIPlane = APManagement -- ^ Management plane (@management.azure.com@ endpoints)
               | APData Text -- ^ Data plane e.g. FileREST API
 
+
+-- | @PUT@
+put :: (A.FromJSON b, A.ToJSON a) =>
+       APIPlane
+    -> [Text] -- ^ URI path segments
+    -> Option 'Https -- ^ request parameters etc.
+    -> a -> AccessToken -> Req b
+put apiplane paths params bdy tok = responseBody <$> req POST url (ReqBodyJson bdy) jsonResponse opts
+  where
+    opts = auth <> params
+    (url, auth) = msAzureReqConfig apiplane paths tok
+
 -- | @POST@
 post :: (A.FromJSON b, A.ToJSON a) =>
         APIPlane
      -> [Text] -- ^ URI path segments
-     -> Option 'Https
+     -> Option 'Https -- ^ request parameters etc.
      -> a -- ^ request body
      -> AccessToken -> Req b
 post apiplane paths params bdy tok = responseBody <$> req POST url (ReqBodyJson bdy) jsonResponse opts

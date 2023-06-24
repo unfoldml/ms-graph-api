@@ -4,15 +4,17 @@
 --
 -- https://learn.microsoft.com/en-us/graph/api/overview?view=graph-rest-1.0&preserve-view=true
 module MSGraphAPI.Internal.Common (
+  -- * PUT
+  put
   -- * GET
-  get
+  , get
   , getLbs
-  -- ** catch HTTP exceptions
-  , getE
+  -- -- ** catch HTTP exceptions
+  -- , getE
   -- * POST
   , post
-    -- ** catch HTTP exceptions
-  , postE
+  --   -- ** catch HTTP exceptions
+  -- , postE
   -- * running requests
   , runReq
   , tryReq
@@ -43,7 +45,7 @@ import Network.OAuth.OAuth2.Internal (AccessToken(..), ExchangeToken(..), Refres
 -- modern-uri
 import Text.URI (URI, mkURI)
 -- req
-import Network.HTTP.Req (Req, runReq, HttpException(..), defaultHttpConfig, req, Option, (=:), GET(..), POST(..), Url, Scheme(..), useHttpsURI, https, (/:), ReqBodyJson(..), NoReqBody(..), oAuth2Bearer, HttpResponse(..), jsonResponse, JsonResponse, lbsResponse, LbsResponse, bsResponse, BsResponse, responseBody)
+import Network.HTTP.Req (Req, runReq, HttpException(..), defaultHttpConfig, req, Option, (=:), GET(..), POST(..), PUT(..), Url, Scheme(..), useHttpsURI, https, (/:), ReqBodyJson(..), NoReqBody(..), oAuth2Bearer, HttpResponse(..), jsonResponse, JsonResponse, lbsResponse, LbsResponse, bsResponse, BsResponse, responseBody)
 -- text
 import Data.Text (Text, pack, unpack)
 -- unliftio
@@ -59,12 +61,23 @@ tryReq :: Req a -> Req (Either HttpException a)
 tryReq = try
 
 
--- -- GET, POST 
+
+
+
+-- * REST verbs
+
+put :: (A.FromJSON b, A.ToJSON a) =>
+       [Text]
+    -> Option 'Https -> a -> AccessToken -> Req b
+put paths params bdy tok = responseBody <$> req PUT url (ReqBodyJson bdy) jsonResponse opts
+  where
+    opts = auth <> params
+    (url, auth) = msGraphReqConfig tok paths
 
 -- | @POST https:\/\/graph.microsoft.com\/v1.0\/...@
 post :: (A.ToJSON a, A.FromJSON b) =>
         [Text] -- ^ URI path segments
-     -> Option 'Https
+     -> Option 'Https -- ^ request parameters etc.
      -> a -- ^ request body
      -> AccessToken
      -> Req b
@@ -73,16 +86,16 @@ post paths params bdy tok = responseBody <$> req POST url (ReqBodyJson bdy) json
     opts = auth <> params
     (url, auth) = msGraphReqConfig tok paths
 
--- | Like 'post' but catches 'HttpException's to allow pattern matching
-postE :: (A.ToJSON a, A.FromJSON b) =>
-         [Text] -- ^ URI path segments
-      -> Option 'Https -> a -> AccessToken -> Req (Either HttpException b)
-postE paths params bdy tok = tryReq (post paths params bdy tok)
+-- -- | Like 'post' but catches 'HttpException's to allow pattern matching
+-- postE :: (A.ToJSON a, A.FromJSON b) =>
+--          [Text] -- ^ URI path segments
+--       -> Option 'Https -> a -> AccessToken -> Req (Either HttpException b)
+-- postE paths params bdy tok = tryReq (post paths params bdy tok)
 
 -- | @GET https:\/\/graph.microsoft.com\/v1.0\/...@
 get :: A.FromJSON a =>
        [Text] -- ^ URI path segments
-    -> Option 'Https
+    -> Option 'Https -- ^ request parameters etc.
     -> AccessToken
     -> Req a
 get paths params tok = responseBody <$> req GET url NoReqBody jsonResponse opts
@@ -90,11 +103,11 @@ get paths params tok = responseBody <$> req GET url NoReqBody jsonResponse opts
     opts = auth <> params
     (url, auth) = msGraphReqConfig tok paths
 
--- | Like 'get' but catches 'HttpException's to allow pattern matching
-getE :: (A.FromJSON a) =>
-        [Text] -- ^ URI path segments
-     -> Option 'Https -> AccessToken -> Req (Either HttpException a)
-getE paths params tok = tryReq (get paths params tok)
+-- -- | Like 'get' but catches 'HttpException's to allow pattern matching
+-- getE :: (A.FromJSON a) =>
+--         [Text] -- ^ URI path segments
+--      -> Option 'Https -> AccessToken -> Req (Either HttpException a)
+-- getE paths params tok = tryReq (get paths params tok)
 
 -- | @GET https:\/\/graph.microsoft.com\/v1.0\/...@
 --
