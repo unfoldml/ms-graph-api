@@ -13,8 +13,14 @@ module MSAzureAPI.Internal.Common (
   , (==:)
   -- ** Helpers
   , tryReq
-  -- ** JSON
+  -- ** Common types
   , Collection
+  , collectionValue
+  , collectionNextLink
+  -- *** Location
+  , Location(..)
+  , showLocation
+  -- ** JSON co\/dec
   , aesonOptions
   ) where
 
@@ -136,14 +142,38 @@ msAzureReqConfig apiplane uriRest (AccessToken ttok) = (url, os)
 (//:) = foldl (/:)
 
 
--- * aeson
+-- * common types
+
+showLocation :: Location -> Text
+showLocation = pack . show
+
+-- | Azure regions
+data Location =
+  LNorthEU -- ^ "North Europe"
+  | LWestEU -- ^ "West Europe"
+  deriving (Eq)
+instance Show Location where
+  show = \case
+    LNorthEU -> "northeu"
+    LWestEU -> "westeu"
 
 -- | a collection of items with key @value@
+--
+-- NB : results are paginated, and subsequent chunks can be accessed by following the @nextLink@ field
 data Collection a = Collection {
   cValue :: [a]
+  , cNextLink :: Maybe Text -- ^ The URI to fetch the next page of results
                                } deriving (Eq, Show, Generic)
 instance A.FromJSON a => A.FromJSON (Collection a) where
   parseJSON = A.genericParseJSON (aesonOptions "c")
+-- | Get the collection items
+collectionValue :: Collection a -> [a]
+collectionValue = cValue
+-- | Get the next link for a 'Collection' of paginated results
+collectionNextLink :: Collection a -> Maybe Text
+collectionNextLink = cNextLink
+
+-- * aeson
 
 -- | drop the prefix and lowercase first character
 --

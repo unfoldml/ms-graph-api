@@ -8,10 +8,11 @@ module MSAzureAPI.StorageServices.FileService (
   getFile
   -- * Directories
   , listDirectoriesAndFiles
+  , DirItems(..)
   , DirItem(..)
   ) where
 
-import Control.Applicative (Alternative(..))
+import Control.Applicative (Alternative(..), optional)
 import Control.Monad.IO.Class (MonadIO(..))
 import Data.Foldable (asum)
 import Data.Functor (void)
@@ -113,38 +114,59 @@ getFile acct fshare fpath atok = do
     domain = acct <> ".file.core.windows.net"
     pth = [fshare, fpath]
 
--- | list directories and files  https://learn.microsoft.com/en-us/rest/api/storageservices/list-directories-and-files#request 
+-- | list directories and files  https://learn.microsoft.com/en-us/rest/api/storageservices/list-directories-and-files#request
+--
+-- NB the the response list contains at most 5000 elements
 --
 -- @GET https:\/\/myaccount.file.core.windows.net\/myshare\/mydirectorypath?restype=directory&comp=list@
+--
+-- === Paginated results
+--
+-- NB : The Marker, ShareSnapshot, and MaxResults elements are present only if you specify them on the request URI.
+--
+-- If the @<NextMarker> element in the @XML body has a value, it means that the result list is not complete. In that case
 listDirectoriesAndFiles :: Text -- ^ storage account
                         -> Text -- ^ file share
                         -> Text -- ^ directory path, including directories
+                        -> Maybe Text -- ^ next page marker. Use 'Nothing' to retrieve first page of results
                         -> AccessToken
-                        -> Req (Either String [DirItem])
-listDirectoriesAndFiles acct fshare fpath atok = do
+                        -> Req (Either String DirItems)
+listDirectoriesAndFiles acct fshare fpath mm atok = do
   os <- msStorageReqHeaders
-  bs <- getBs (APData domain) pth (os <> "restype" ==: "directory" <> "comp" ==: "list") atok
+  bs <- getBs (APData domain) pth (os <> "restype" ==: "directory" <> "comp" ==: "list" <> mMarker mm) atok
   pure $ parseXML listDirectoriesP bs
   where
     domain = acct <> ".file.core.windows.net"
     pth = [fshare, fpath]
+    mMarker = \case
+      Just m -> ("marker" ==: m)
+      _ -> mempty
 
 -- | Directory item, as returned by 'listDirectoriesAndFiles'
-data DirItem = DIFile {diId :: Text, diName :: Text}
-             | DIDirectory {diId :: Text, diName :: Text}
+data DirItem = DIFile {diId :: Text, diName :: Text} -- ^ file
+             | DIDirectory {diId :: Text, diName :: Text} -- ^ directory
              deriving (Show)
 
+-- | Items in the 'listDirectoriesAndFiles' response
+data DirItems = DirItems {
+  disItems :: [DirItem]
+  , disResponseMarker :: Maybe Text -- ^ marker to request next page of results
+                         }
+
 -- | XML parser for the response body format shown here: https://learn.microsoft.com/en-us/rest/api/storageservices/list-directories-and-files#response-body
-listDirectoriesP :: XB.Parser [DirItem]
+listDirectoriesP :: XB.Parser DirItems
 listDirectoriesP = do
   tag "EnumerationResults" $ do
     enumResultsIgnore
     es <- entries
-    selfClosing "NextMarker"
-    pure es
+    nm <- nextMarker
+    pure (DirItems es nm)
 
 enumResultsIgnore :: XB.Parser ()
-enumResultsIgnore = ignoreList ["Marker", "Prefix", "MaxResults", "DirectoryId"]
+enumResultsIgnore = ignoreList ["Marker", "Prefix", "MaxResults", "DirectoryId"] 
+
+-- marker :: XB.Parser (Maybe Text)
+-- marker = optional (TL.toStrict <$> tag "Marker" anystring)
 
 entries :: XB.Parser [DirItem]
 entries = tag "Entries" $ many (file <|> directory)
@@ -183,8 +205,11 @@ properties = tag "Properties" $
 ignoreList :: [Text] -> XB.Parser ()
 ignoreList ns = void $ many (asum (map (`XB.pElement` XB.pText) ns))
 
-selfClosing :: Text -> XB.Parser ()
-selfClosing t = tag t (pure ())
+nextMarker :: XB.Parser (Maybe Text)
+nextMarker = optional (TL.toStrict <$> tag "NextMarker" anystring)
+
+-- selfClosing :: Text -> XB.Parser ()
+-- selfClosing t = tag t (pure ())
 
 
 anystring :: XB.Parser TL.Text

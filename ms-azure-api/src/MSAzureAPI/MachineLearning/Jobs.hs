@@ -30,7 +30,7 @@ import qualified Data.Text.Lazy as TL (Text, pack, unpack, toStrict)
 -- -- xmlbf-xeno
 -- import qualified Xmlbf.Xeno as XB (fromRawXml)
 -- xmlbf
-import qualified Xmlbf as XB (Parser, runParser, pElement, pText)
+-- import qualified Xmlbf as XB (Parser, runParser, pElement, pText)
 
 import qualified MSAzureAPI.Internal.Common as MSA (APIPlane(..), (==:), put, get, getBs, post, getLbs, aesonOptions)
 
@@ -53,9 +53,9 @@ createJob sid rgid wsid jid =
                     "resourceGroups", rgid,
                     "providers", "Microsoft.MachineLearningServices",
                     "workspaces", wsid,
-                    "jobs", jid] ("api-version" MSA.==: "2023-04-01")
+                    "jobs", jid] ("api-version" MSA.==: "2023-04-JobBase")
 
--- | JobBase type
+-- | 01 type
 --
 -- https://learn.microsoft.com/en-us/rest/api/azureml/2023-04-01/jobs/create-or-update?tabs=HTTP
 data JobBase = JBAutoMLJob -- ^ https://learn.microsoft.com/en-us/rest/api/azureml/2023-04-01/jobs/list?tabs=HTTP#automljob

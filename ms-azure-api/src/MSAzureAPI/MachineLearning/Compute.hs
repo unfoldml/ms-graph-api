@@ -1,3 +1,6 @@
+-- |
+--
+-- auth: needs @user_impersonation@ scope
 module MSAzureAPI.MachineLearning.Compute where
 
 import Control.Applicative (Alternative(..))

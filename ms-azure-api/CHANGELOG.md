@@ -8,7 +8,16 @@ and this project adheres to the
 
 ## Unreleased
 
-## 0.2
+## 0.3.0.0
+
+MSAzureAPI.MachineLearning.Compute
+MSAzureAPI.MachineLearning.Jobs
+MSAzureAPI.MachineLearning.Usages
+
+* breaking changes:
+MSAzureAPI.StorageServices.FileService. listDirectoriesAndFiles now has an extra parameter to support paginated results
+
+## 0.2.0.0
 
 MSAzureAPI.StorageServices.FileService. listDirectoriesAndFiles
 
