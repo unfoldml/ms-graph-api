@@ -8,7 +8,7 @@ module MSAzureAPI.StorageServices.FileService (
   getFile
   -- * Directories
   , listDirectoriesAndFiles
-  , listDirectoriesAndFilesC
+  -- , listDirectoriesAndFilesC
   , DirItems(..)
   , DirItem(..)
   ) where

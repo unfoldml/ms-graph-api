@@ -8,11 +8,11 @@ and this project adheres to the
 
 ## Unreleased
 
+MSAzureAPI.StorageServices.FileService : add listDirectoriesAndFilesC (stream all response pages from listDirectoriesAndFiles)
+
 ## 0.3.0.0
 
 add 'conduit' as a dependency
-
-add listDirectoriesAndFilesC
 
 MSAzureAPI.MachineLearning.Compute
 MSAzureAPI.MachineLearning.Jobs
@@ -23,9 +23,7 @@ MSAzureAPI.StorageServices.FileService. listDirectoriesAndFiles now has an extra
 
 ## 0.2.0.0
 
-* MSAzureAPI.StorageServices.FileService
-
-add listDirectoriesAndFiles
+MSAzureAPI.StorageServices.FileService : add listDirectoriesAndFiles
 
 Add XML support via `xeno` and `xmlbf` to parse `listDirectoriesAndFiles` response bodies
 
