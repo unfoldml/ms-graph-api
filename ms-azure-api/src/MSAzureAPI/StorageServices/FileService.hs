@@ -147,23 +147,23 @@ listDirectoriesAndFiles acct fshare fpath mm atok = do
       Just m -> ("marker" ==: m)
       _ -> mempty
 
--- | Repeated call of 'listDirectoriesAndFiles' supporting multi-page results
-listDirectoriesAndFilesC :: MonadIO m =>
-                              Text -- ^ storage account
-                           -> Text -- ^ file share
-                           -> Text -- ^ directory path, including directories
-                           -> AccessToken -> C.ConduitT i [DirItem] m ()
-listDirectoriesAndFilesC acct fshare fpath atok = go Nothing
-  where
-    go mm = do
-      eres <- runReq defaultHttpConfig $ tryReq $ listDirectoriesAndFiles acct fshare fpath mm atok
-      case eres of
-        Left _ -> undefined -- FIXME http exception
-        Right xe -> case xe of
-          Left _ -> undefined -- FIXME xml parsing error
-          Right (DirItems xs nMarker) -> do
-            C.yield xs
-            when (isJust nMarker) (go nMarker)
+-- -- | Repeated call of 'listDirectoriesAndFiles' supporting multi-page results
+-- listDirectoriesAndFilesC :: MonadIO m =>
+--                               Text -- ^ storage account
+--                            -> Text -- ^ file share
+--                            -> Text -- ^ directory path, including directories
+--                            -> AccessToken -> C.ConduitT i [DirItem] m ()
+-- listDirectoriesAndFilesC acct fshare fpath atok = go Nothing
+--   where
+--     go mm = do
+--       eres <- runReq defaultHttpConfig $ tryReq $ listDirectoriesAndFiles acct fshare fpath mm atok
+--       case eres of
+--         Left _ -> undefined -- FIXME http exception
+--         Right xe -> case xe of
+--           Left _ -> undefined -- FIXME xml parsing error
+--           Right (DirItems xs nMarker) -> do
+--             C.yield xs
+--             when (isJust nMarker) (go nMarker)
 
 -- | Directory item, as returned by 'listDirectoriesAndFiles'
 data DirItem = DIFile {diId :: Text, diName :: Text} -- ^ file
