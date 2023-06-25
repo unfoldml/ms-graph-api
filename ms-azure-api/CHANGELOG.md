@@ -10,16 +10,22 @@ and this project adheres to the
 
 ## 0.3.0.0
 
+add 'conduit' as a dependency
+
+add listDirectoriesAndFilesC
+
 MSAzureAPI.MachineLearning.Compute
 MSAzureAPI.MachineLearning.Jobs
 MSAzureAPI.MachineLearning.Usages
 
 * breaking changes:
-MSAzureAPI.StorageServices.FileService. listDirectoriesAndFiles now has an extra parameter to support paginated results
+MSAzureAPI.StorageServices.FileService. listDirectoriesAndFiles now has an extra parameter to support paginated results, as well as a more informative return type.
 
 ## 0.2.0.0
 
-MSAzureAPI.StorageServices.FileService. listDirectoriesAndFiles
+* MSAzureAPI.StorageServices.FileService
+
+add listDirectoriesAndFiles
 
 Add XML support via `xeno` and `xmlbf` to parse `listDirectoriesAndFiles` response bodies
 

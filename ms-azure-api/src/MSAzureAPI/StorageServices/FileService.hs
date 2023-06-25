@@ -8,26 +8,31 @@ module MSAzureAPI.StorageServices.FileService (
   getFile
   -- * Directories
   , listDirectoriesAndFiles
+  , listDirectoriesAndFilesC
   , DirItems(..)
   , DirItem(..)
   ) where
 
 import Control.Applicative (Alternative(..), optional)
+import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO(..))
 import Data.Foldable (asum)
 import Data.Functor (void)
-import Data.Maybe (listToMaybe)
+import Data.Maybe (listToMaybe, isJust)
 import qualified Text.ParserCombinators.ReadP as RP (ReadP, readP_to_S, choice, many, between, char, string, satisfy)
 
 -- bytestring
 import qualified Data.ByteString as BS (ByteString)
 import qualified Data.ByteString.Char8 as BS8 (pack, unpack)
 import qualified Data.ByteString.Lazy as LBS (ByteString)
+-- conduit
+import qualified Data.Conduit as C (ConduitT, yield, runConduitRes)
+import Data.Conduit ((.|))
 -- hoauth2
 -- import Network.OAuth.OAuth2 (OAuth2Token(..))
 import Network.OAuth.OAuth2.Internal (AccessToken(..))
 -- req
-import Network.HTTP.Req (Req, Url, Option, Scheme(..), header, (=:))
+import Network.HTTP.Req (HttpException, runReq, defaultHttpConfig, Req, Url, Option, Scheme(..), header, (=:))
 -- text
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text.Lazy as TL (Text, pack, unpack, toStrict)
@@ -42,7 +47,7 @@ import qualified Xmlbf.Xeno as XB (fromRawXml)
 -- xmlbf
 import qualified Xmlbf as XB (Parser, runParser, pElement, pText)
 
-import MSAzureAPI.Internal.Common (APIPlane(..), (==:), get, getBs, post, getLbs)
+import MSAzureAPI.Internal.Common (APIPlane(..), (==:), get, getBs, post, getLbs, tryReq)
 
 
 
@@ -141,6 +146,24 @@ listDirectoriesAndFiles acct fshare fpath mm atok = do
     mMarker = \case
       Just m -> ("marker" ==: m)
       _ -> mempty
+
+-- | Repeated call of 'listDirectoriesAndFiles' supporting multi-page results
+listDirectoriesAndFilesC :: MonadIO m =>
+                              Text -- ^ storage account
+                           -> Text -- ^ file share
+                           -> Text -- ^ directory path, including directories
+                           -> AccessToken -> C.ConduitT i [DirItem] m ()
+listDirectoriesAndFilesC acct fshare fpath atok = go Nothing
+  where
+    go mm = do
+      eres <- runReq defaultHttpConfig $ tryReq $ listDirectoriesAndFiles acct fshare fpath mm atok
+      case eres of
+        Left _ -> undefined -- FIXME http exception
+        Right xe -> case xe of
+          Left _ -> undefined -- FIXME xml parsing error
+          Right (DirItems xs nMarker) -> do
+            C.yield xs
+            when (isJust nMarker) (go nMarker)
 
 -- | Directory item, as returned by 'listDirectoriesAndFiles'
 data DirItem = DIFile {diId :: Text, diName :: Text} -- ^ file
