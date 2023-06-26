@@ -19,6 +19,8 @@ module Network.OAuth2.Session (
   , expireToken
   , readToken
   , fetchUpdateToken
+  -- ** Default Azure Credential
+  , defaultAzureCredential
   -- * B Auth code grant flow (with user in the loop)
   -- ** OAuth endpoints
   , loginEndpoint
@@ -158,7 +160,7 @@ readToken :: MonadIO m => Token t -> m (Maybe t)
 readToken ts = atomically $ readTVar ts
 
 fetchUpdateTokenWith :: MonadIO m =>
-                        (t1 -> t2 -> ExceptT e IO OAuth2Token)
+                        (t1 -> t2 -> ExceptT [String] IO OAuth2Token)
                      -> t1 -> Token OAuth2Token -> t2 -> m ()
 fetchUpdateTokenWith f idpApp ts mgr = liftIO $ void $ forkFinally loop cleanup
   where
@@ -168,7 +170,7 @@ fetchUpdateTokenWith f idpApp ts mgr = liftIO $ void $ forkFinally loop cleanup
     loop = do
       tokenResp <- runExceptT $ f idpApp mgr -- allows different mechanisms of fetching OAuth2 token
       case tokenResp of
-        -- Left es -> throwIO (OASEOAuth2Errors es)
+        Left es -> throwIO (OASEDefaultAzureCredentialsE es)
         Right oat -> do
           ein <- updateToken ts oat
           let
@@ -177,13 +179,24 @@ fetchUpdateTokenWith f idpApp ts mgr = liftIO $ void $ forkFinally loop cleanup
           loop
 
 -- | DefaultUserCredential mechanism as in the Python SDK https://pypi.org/project/azure-identity/
+defaultAzureCredential :: MonadIO m =>
+                          String
+                       -> String
+                       -> IdpApplication 'ClientCredentials AzureAD
+                       -> Token OAuth2Token
+                       -> Manager
+                       -> m ()
+defaultAzureCredential clid resuri = fetchUpdateTokenWith (
+  \idp mgr ->
+    tokenRequestNoExchange idp mgr <|>
+    managedIdentity mgr clid resuri
+    )
 
--- defaultAzureCredential clid resuri = fetchUpdateTokenWith (
---   \idp mgr ->
---     conduitTokenRequest idp mgr <|>  -- FIXME
---     managedIdentity mgr clid resuri
---     )
-
+tokenRequestNoExchange :: (MonadIO m) =>
+                          IdpApplication 'ClientCredentials AzureAD
+                       -> Manager
+                       -> ExceptT [String] m OAuth2Token
+tokenRequestNoExchange idp mgr = withExceptT (pure . show) (conduitTokenRequest idp mgr)
 
 -- | Fetch an OAuth token and keep it updated. Should be called as a first thing in the app
 --
@@ -383,6 +396,7 @@ refreshLoopACG ts idpApp mgr uid oaToken = liftIO $ forkFinally (act oaToken) cl
 data OAuthSessionError = OASERefreshTokenNotFound
                        | OASEExchangeTokenNotFound
                        | OASEOAuth2Errors (OAuth2Error Errors)
+                       | OASEDefaultAzureCredentialsE [String]
                        | OASEJWTException (NonEmpty JWTException)
                        | OASENoOpenID
                        deriving (Eq, Typeable)
@@ -393,6 +407,8 @@ instance Show OAuthSessionError where
     OASEExchangeTokenNotFound -> unwords ["Exchange token not found. This shouldn't happen"]
     OASEOAuth2Errors oerrs ->
       unwords ["OAuth2 error(s):", show oerrs]
+    OASEDefaultAzureCredentialsE es ->
+      unwords ["defaultAzureCredential error(s):", mconcat es]
     OASEJWTException jwtes -> unwords ["JWT error(s):", show jwtes]
     OASENoOpenID -> unwords ["No ID token found. Ensure 'openid' scope appears in token request"]
 
