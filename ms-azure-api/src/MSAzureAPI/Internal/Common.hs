@@ -9,6 +9,9 @@ module MSAzureAPI.Internal.Common (
   , getBs
   , getLbs
   , post
+  -- * HTTP(S) connections
+  , run
+  , withTLS
   -- ** URL parameters
   , (==:)
   -- ** Helpers
@@ -40,13 +43,15 @@ import qualified Data.ByteString as BS (ByteString)
 import qualified Data.ByteString.Char8 as BS8 (pack, unpack)
 import qualified Data.ByteString.Lazy as LBS (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as LBS8 (pack, unpack, putStrLn)
+-- http-client-tls
+import Network.HTTP.Client.TLS (newTlsManager)
 -- hoauth2
 import Network.OAuth.OAuth2 (OAuth2Token(..))
 import Network.OAuth.OAuth2.Internal (AccessToken(..), ExchangeToken(..), RefreshToken(..), OAuth2Error, IdToken(..))
 -- modern-uri
 -- import Text.URI (URI, mkURI)
 -- req
-import Network.HTTP.Req (Req, runReq, HttpException(..), defaultHttpConfig, req, Option, (=:), GET(..), POST(..), Url, Scheme(..), useHttpsURI, https, (/:), ReqBodyJson(..), NoReqBody(..), oAuth2Bearer, HttpResponse(..), jsonResponse, JsonResponse, lbsResponse, LbsResponse, bsResponse, BsResponse, responseBody)
+import Network.HTTP.Req (Req, runReq, HttpConfig(..), HttpException(..), defaultHttpConfig, req, Option, (=:), GET(..), POST(..), Url, Scheme(..), useHttpsURI, https, (/:), ReqBodyJson(..), NoReqBody(..), oAuth2Bearer, HttpResponse(..), jsonResponse, JsonResponse, lbsResponse, LbsResponse, bsResponse, BsResponse, responseBody)
 -- text
 import Data.Text (Text, pack, unpack)
 -- unliftio
@@ -76,6 +81,21 @@ getBs apiplane paths params tok = responseBody <$> req GET url NoReqBody bsRespo
   where
     opts = auth <> params
     (url, auth) = msAzureReqConfig apiplane paths tok
+
+-- | Create a new TLS manager, which should be reused throughout the program
+withTLS :: MonadIO m =>
+           (HttpConfig -> m b) -- ^ user program
+        -> m b
+withTLS act = do
+  mgr <- newTlsManager
+  let
+    hc = defaultHttpConfig { httpConfigAltManager = Just mgr }
+  act hc
+
+-- | Run a 'Req' computation
+run :: MonadIO m =>
+       HttpConfig -> Req a -> m (Either HttpException a)
+run hc = runReq hc . tryReq
 
 
 -- | Specialized version of 'try' to 'HttpException's

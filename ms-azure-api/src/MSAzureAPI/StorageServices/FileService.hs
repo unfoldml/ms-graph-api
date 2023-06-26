@@ -37,7 +37,7 @@ import Data.Conduit ((.|))
 -- import Network.OAuth.OAuth2 (OAuth2Token(..))
 import Network.OAuth.OAuth2.Internal (AccessToken(..))
 -- req
-import Network.HTTP.Req (HttpException, runReq, defaultHttpConfig, Req, Url, Option, Scheme(..), header, (=:))
+import Network.HTTP.Req (HttpException, runReq, HttpConfig, defaultHttpConfig, Req, Url, Option, Scheme(..), header, (=:))
 -- text
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text.Lazy as TL (Text, pack, unpack, toStrict)
@@ -52,7 +52,7 @@ import qualified Xmlbf.Xeno as XB (fromRawXml)
 -- xmlbf
 import qualified Xmlbf as XB (Parser, runParser, pElement, pText)
 
-import MSAzureAPI.Internal.Common (APIPlane(..), (==:), get, getBs, post, getLbs, tryReq)
+import MSAzureAPI.Internal.Common (run, APIPlane(..), (==:), get, getBs, post, getLbs, tryReq)
 
 
 
@@ -159,11 +159,13 @@ listDirectoriesAndFilesC :: (MonadIO m, MonadThrow m) =>
                             Text -- ^ storage account
                          -> Text -- ^ file share
                          -> Text -- ^ directory path, including directories
-                         -> AccessToken -> C.ConduitT i [DirItem] m ()
-listDirectoriesAndFilesC acct fshare fpath atok = go Nothing
+                         -> HttpConfig
+                         -> AccessToken
+                         -> C.ConduitT i [DirItem] m ()
+listDirectoriesAndFilesC acct fshare fpath hc atok = go Nothing
   where
     go mm = do
-      eres <- runReq defaultHttpConfig $ tryReq $ listDirectoriesAndFiles acct fshare fpath mm atok
+      eres <- run hc $ listDirectoriesAndFiles acct fshare fpath mm atok
       case eres of
         Left e -> throwM $ FSHttpE e
         Right xe -> case xe of

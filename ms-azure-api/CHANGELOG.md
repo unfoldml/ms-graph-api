@@ -8,6 +8,11 @@ and this project adheres to the
 
 ## Unreleased
 
+## 0.4
+
+TLS support
+
+
 ## 0.3.1.0
 
 MSAzureAPI.StorageServices.FileService : add listDirectoriesAndFilesC (stream all response pages from listDirectoriesAndFiles)
