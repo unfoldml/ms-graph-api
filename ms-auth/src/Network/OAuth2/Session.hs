@@ -13,13 +13,13 @@
 --
 -- and provides functions to keep tokens up to date in the background.
 module Network.OAuth2.Session (
-  -- * App-only flow
+  -- * A App-only flow (server-to-server)
   Token
   , newNoToken
   , expireToken
   , readToken
   , fetchUpdateToken
-  -- * Auth code grant flow
+  -- * B Auth code grant flow (with user in the loop)
   -- ** OAuth endpoints
   , loginEndpoint
   , replyEndpoint
@@ -37,6 +37,7 @@ module Network.OAuth2.Session (
   , Action
                               ) where
 
+import Control.Applicative (Alternative(..))
 import Control.Exception (Exception(..), SomeException(..))
 import Control.Monad.IO.Class (MonadIO(..))
 import Data.Functor (void)
@@ -45,23 +46,26 @@ import Data.Maybe (fromMaybe)
 import Data.String (IsString(..))
 import Data.Typeable (Typeable)
 import GHC.Exception (SomeException)
+import System.Environment (lookupEnv)
 
 -- aeson
-import Data.Aeson
+import qualified Data.Aeson as A (FromJSON(..), eitherDecode)
 -- bytestring
+import qualified Data.ByteString.Char8 as BS (pack)
 import qualified Data.ByteString.Lazy.Char8 as BSL
 -- containers
 import qualified Data.Map as M (Map, insert, lookup, alter, toList)
 -- -- heaps
 -- import qualified Data.Heap as H (Heap, empty, null, size, insert, viewMin, deleteMin, Entry(..), )
 -- hoauth2
-import Network.OAuth.OAuth2 (OAuth2Token(..), AccessToken(..), ExchangeToken(..), RefreshToken(..), OAuth2Error, IdToken(..))
+import Network.OAuth.OAuth2 (OAuth2Token(..), AccessToken(..), ExchangeToken(..), RefreshToken(..), OAuth2Error(..), IdToken(..))
 import Network.OAuth2.Experiment (IdpUserInfo, conduitUserInfoRequest, mkAuthorizeRequest, conduitTokenRequest, conduitRefreshTokenRequest, HasRefreshTokenRequest(..), WithExchangeToken, IdpApplication(..), GrantTypeFlow(..))
 import Network.OAuth.OAuth2.TokenRequest (Errors)
 -- http-client
-import Network.HTTP.Client (Manager)
+import Network.HTTP.Client (Manager, parseRequest, requestHeaders, httpLbs, responseBody, responseStatus)
 -- http-types
-import Network.HTTP.Types (status302, status400, status401)
+import Network.HTTP.Types (status302, status400, status401, statusCode)
+import Network.HTTP.Types.Header (RequestHeaders, Header)
 -- scotty
 import Web.Scotty (scotty, RoutePattern)
 import Web.Scotty.Trans (scottyT, ActionT, ScottyT, get, raise, redirect, params, header, setHeader, status, text)
@@ -136,7 +140,12 @@ withAADUser ts loginURI act = aadHeaderIdToken $ \usub -> do
       redirect loginURI
 
 
+
+
+
 -- * App-only authorization scenarios (i.e via automation accounts. Human users not involved)
+
+
 
 -- | App has (at most) one token at a time
 type Token t = TVar (Maybe t)
@@ -147,6 +156,34 @@ expireToken :: MonadIO m => Token t -> m ()
 expireToken ts = atomically $ modifyTVar ts (const Nothing)
 readToken :: MonadIO m => Token t -> m (Maybe t)
 readToken ts = atomically $ readTVar ts
+
+fetchUpdateTokenWith :: MonadIO m =>
+                        (t1 -> t2 -> ExceptT e IO OAuth2Token)
+                     -> t1 -> Token OAuth2Token -> t2 -> m ()
+fetchUpdateTokenWith f idpApp ts mgr = liftIO $ void $ forkFinally loop cleanup
+  where
+    cleanup = \case
+      Left e -> throwIO e
+      Right _ -> pure ()
+    loop = do
+      tokenResp <- runExceptT $ f idpApp mgr -- allows different mechanisms of fetching OAuth2 token
+      case tokenResp of
+        -- Left es -> throwIO (OASEOAuth2Errors es)
+        Right oat -> do
+          ein <- updateToken ts oat
+          let
+            dtSecs = (round ein - 30) -- 30 seconds before expiry
+          threadDelay (dtSecs * 1000000) -- pause thread
+          loop
+
+-- | DefaultUserCredential mechanism as in the Python SDK https://pypi.org/project/azure-identity/
+
+-- defaultAzureCredential clid resuri = fetchUpdateTokenWith (
+--   \idp mgr ->
+--     conduitTokenRequest idp mgr <|>  -- FIXME
+--     managedIdentity mgr clid resuri
+--     )
+
 
 -- | Fetch an OAuth token and keep it updated. Should be called as a first thing in the app
 --
@@ -182,6 +219,55 @@ updateToken ts oat = do
   atomically $ do
     writeTVar ts (Just oat)
   pure ein
+
+
+
+-- * Managed identity
+
+-- | With its managed identity, an app can obtain tokens for Azure resources that are protected by Azure Active Directory, such as Azure SQL Database, Azure Key Vault, and Azure Storage. These tokens represent the application accessing the resource, and not any specific user of the application.
+--
+-- App Service and Azure Functions provide an internally accessible REST endpoint for token retrieval. 
+--
+-- https://learn.microsoft.com/en-us/azure/app-service/overview-managed-identity?tabs=portal%2Chttp#rest-endpoint-reference
+managedIdentity :: Manager
+                -> String -- ^ client ID
+                -> String -- ^ Azure resource URI
+                -> ExceptT [String] IO OAuth2Token
+managedIdentity mgr clid resUri = ExceptT $ do
+  mih <- lookupEnv "IDENTITY_ENDPOINT"
+  mie <- lookupEnv "IDENTITY_HEADER"
+  case (,) <$> mih <*> mie of
+    Just (idEndpoint, ih) -> do
+      let
+        apiVer = "2019-08-01"
+        xIdentityHeader = ih
+      r <- parseRequest $ mconcat [idEndpoint, "?", kvs [("resource", resUri), ("api-version", apiVer), ("client_id", clid)]]
+      let
+        r' = r {
+          requestHeaders = [
+              ("X-IDENTITY-HEADER", BS.pack xIdentityHeader)
+                           ]
+               }
+      res <- httpLbs r' mgr
+      let
+        rstat = responseStatus res
+        sci = statusCode rstat
+      if 200 <= sci && sci < 300
+        then
+        case A.eitherDecode (responseBody res) of
+          Right oat -> pure $ Right oat
+          Left e -> pure $ lefts $ unwords ["managedIdentity: Cannot decode OAuth token:", e]
+        else
+          pure $ lefts $ unwords ["managedIdentity: status code exception:", show rstat]
+    _ -> pure $
+          lefts $ unwords ["managedIdentity: Cannot find either IDENTITY_ENDPOINT or IDENTITY_HEADER env vars."]
+lefts :: a -> Either [a] b
+lefts s = Left [s]
+
+kvs :: [(String, String)] -> String
+kvs = foldr ins mempty
+  where
+    ins (k, v) acc = acc <> ("&" <> k <> "=" <> v)
 
 
 
@@ -359,7 +445,8 @@ newtype TokensData uid t = TokensData {
   thUsersMap :: M.Map uid t
   } deriving (Eq, Show)
 
-
+-- class HasTokens r where
+--   hasTokens :: r -> Tokens uid t
 
 -- | Decode and validate ID token
 -- https://learn.microsoft.com/en-us/azure/active-directory/develop/userinfo#consider-using-an-id-token-instead

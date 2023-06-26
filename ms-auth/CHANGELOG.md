@@ -8,6 +8,14 @@ and this project adheres to the
 
 ## Unreleased
 
+defaultAzureCredential - to mimic the behaviour of the Microsoft Identity SDK
+
+Breaking change:
+
+module Network.OAuth2.JWT is not exposed anymore
+
+## 0.3.0.0
+
 ## 0.1.0.0
 
 Network.OAuth2.Session : Add App-only functionality
