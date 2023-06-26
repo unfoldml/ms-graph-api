@@ -1,5 +1,5 @@
 name:                ms-azure-api
-version:             0.3.0.0
+version:             0.3.1.0
 synopsis:            Microsoft Azure API
 description:         Bindings to the Microsoft Azure API
 homepage:            https://github.com/unfoldml/ms-graph-api
@@ -25,11 +25,12 @@ library
                        MSAzureAPI.StorageServices
                        MSAzureAPI.StorageServices.FileService
   other-modules:       MSAzureAPI.Internal.Common
-  build-depends:       base >= 4.7 && < 5
-                     , aeson
+  build-depends:       aeson
+                     , base >= 4.7 && < 5
                      , bytestring
                      , conduit
                      , containers
+                     , exceptions >= 0.10.4
                      , hoauth2 == 2.6.0
                      , http-types
                      , modern-uri

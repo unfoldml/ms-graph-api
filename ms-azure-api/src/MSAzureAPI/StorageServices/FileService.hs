@@ -8,17 +8,22 @@ module MSAzureAPI.StorageServices.FileService (
   getFile
   -- * Directories
   , listDirectoriesAndFiles
-  -- , listDirectoriesAndFilesC
+  , listDirectoriesAndFilesC
   , DirItems(..)
   , DirItem(..)
+  -- * Common types
+  , FSException(..)
   ) where
 
 import Control.Applicative (Alternative(..), optional)
+import Control.Exception (Exception(..))
+import Control.Monad.Catch (MonadThrow(..))
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO(..))
 import Data.Foldable (asum)
 import Data.Functor (void)
 import Data.Maybe (listToMaybe, isJust)
+import Data.Typeable (Typeable)
 import qualified Text.ParserCombinators.ReadP as RP (ReadP, readP_to_S, choice, many, between, char, string, satisfy)
 
 -- bytestring
@@ -147,23 +152,33 @@ listDirectoriesAndFiles acct fshare fpath mm atok = do
       Just m -> ("marker" ==: m)
       _ -> mempty
 
--- -- | Repeated call of 'listDirectoriesAndFiles' supporting multi-page results
--- listDirectoriesAndFilesC :: MonadIO m =>
---                               Text -- ^ storage account
---                            -> Text -- ^ file share
---                            -> Text -- ^ directory path, including directories
---                            -> AccessToken -> C.ConduitT i [DirItem] m ()
--- listDirectoriesAndFilesC acct fshare fpath atok = go Nothing
---   where
---     go mm = do
---       eres <- runReq defaultHttpConfig $ tryReq $ listDirectoriesAndFiles acct fshare fpath mm atok
---       case eres of
---         Left _ -> undefined -- FIXME http exception
---         Right xe -> case xe of
---           Left _ -> undefined -- FIXME xml parsing error
---           Right (DirItems xs nMarker) -> do
---             C.yield xs
---             when (isJust nMarker) (go nMarker)
+-- | Repeated call of 'listDirectoriesAndFiles' supporting multi-page results
+--
+-- throws 'FSException' if something goes wrong
+listDirectoriesAndFilesC :: (MonadIO m, MonadThrow m) =>
+                            Text -- ^ storage account
+                         -> Text -- ^ file share
+                         -> Text -- ^ directory path, including directories
+                         -> AccessToken -> C.ConduitT i [DirItem] m ()
+listDirectoriesAndFilesC acct fshare fpath atok = go Nothing
+  where
+    go mm = do
+      eres <- runReq defaultHttpConfig $ tryReq $ listDirectoriesAndFiles acct fshare fpath mm atok
+      case eres of
+        Left e -> throwM $ FSHttpE e
+        Right xe -> case xe of
+          Left e -> throwM $ FSXMLParsingE e
+          Right (DirItems xs nMarker) -> do
+            C.yield xs
+            when (isJust nMarker) (go nMarker)
+
+data FSException = FSXMLParsingE String
+                 | FSHttpE HttpException deriving (Typeable)
+instance Show FSException where
+  show = \case
+    FSXMLParsingE es -> unwords ["XML parsing error:", es]
+    FSHttpE e -> unwords ["HTTP exception:", show e]
+instance Exception FSException
 
 -- | Directory item, as returned by 'listDirectoriesAndFiles'
 data DirItem = DIFile {diId :: Text, diName :: Text} -- ^ file
