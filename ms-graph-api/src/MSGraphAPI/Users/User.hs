@@ -1,4 +1,4 @@
--- | User
+-- | Users.User
 module MSGraphAPI.Users.User where
 
 import GHC.Generics (Generic(..))

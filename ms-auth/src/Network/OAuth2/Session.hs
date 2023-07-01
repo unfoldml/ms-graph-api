@@ -21,7 +21,7 @@ module Network.OAuth2.Session (
   , fetchUpdateToken
   -- ** Default Azure Credential
   , defaultAzureCredential
-  -- * B Auth code grant flow (with user in the loop)
+  -- * B Auth code grant flow (interactive)
   -- ** OAuth endpoints
   , loginEndpoint
   , replyEndpoint
@@ -37,7 +37,7 @@ module Network.OAuth2.Session (
   , withAADUser
   , Scotty
   , Action
-                              ) where
+  ) where
 
 import Control.Applicative (Alternative(..))
 import Control.Exception (Exception(..), SomeException(..))
@@ -152,10 +152,13 @@ withAADUser ts loginURI act = aadHeaderIdToken $ \usub -> do
 -- | App has (at most) one token at a time
 type Token t = TVar (Maybe t)
 
+-- | Create an empty 'Token' store
 newNoToken :: MonadIO m => m (Token t)
 newNoToken = newTVarIO Nothing
+-- | Delete the current token
 expireToken :: MonadIO m => Token t -> m ()
 expireToken ts = atomically $ modifyTVar ts (const Nothing)
+-- | Read the current value of the token
 readToken :: MonadIO m => Token t -> m (Maybe t)
 readToken ts = atomically $ readTVar ts
 
@@ -178,17 +181,23 @@ fetchUpdateTokenWith f idpApp ts mgr = liftIO $ void $ forkFinally loop cleanup
           threadDelay (dtSecs * 1000000) -- pause thread
           loop
 
--- | DefaultUserCredential mechanism as in the Python SDK https://pypi.org/project/azure-identity/
+-- | DefaultAzureCredential mechanism as in the Python SDK https://pypi.org/project/azure-identity/
+--
+-- Order of authentication attempts:
+--
+-- 1) token request with client secret
+--
+-- 2) token request via managed identity (App Service and Azure Functions) https://learn.microsoft.com/en-us/azure/app-service/overview-managed-identity?tabs=portal%2Chttp#rest-endpoint-reference
 defaultAzureCredential :: MonadIO m =>
-                          String
-                       -> String
+                          String -- ^ Client ID
+                       -> String -- ^ Azure Resource URI (for @managed identity@ auth flow)
                        -> IdpApplication 'ClientCredentials AzureAD
                        -> Token OAuth2Token
                        -> Manager
                        -> m ()
 defaultAzureCredential clid resuri = fetchUpdateTokenWith (
-  \idp mgr ->
-    tokenRequestNoExchange idp mgr <|>
+  \ip mgr ->
+    tokenRequestNoExchange ip mgr <|>
     managedIdentity mgr clid resuri
     )
 
@@ -196,7 +205,7 @@ tokenRequestNoExchange :: (MonadIO m) =>
                           IdpApplication 'ClientCredentials AzureAD
                        -> Manager
                        -> ExceptT [String] m OAuth2Token
-tokenRequestNoExchange idp mgr = withExceptT (pure . show) (conduitTokenRequest idp mgr)
+tokenRequestNoExchange ip mgr = withExceptT (pure . show) (conduitTokenRequest ip mgr)
 
 -- | Fetch an OAuth token and keep it updated. Should be called as a first thing in the app
 --

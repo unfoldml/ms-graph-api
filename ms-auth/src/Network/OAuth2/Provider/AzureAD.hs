@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# language DeriveGeneric, GeneralizedNewtypeDeriving, DerivingStrategies #-}
 {-# LANGUAGE QuasiQuotes, RecordWildCards #-}
 {-# language OverloadedStrings #-}
@@ -6,19 +7,29 @@
 {-# options_ghc -Wno-ambiguous-fields #-}
 -- | Settings for using Azure Active Directory as OAuth identity provider
 --
--- Both @Delegated@ (On-Behalf-Of) and @App-only@ (i.e. Client Credentials) authentication flows are supported. The former is useful when a user needs to login and delegate some permissions to the application (i.e. accessing personal data), whereas the second is for server processes and automation accounts.
+-- Both @Auth Code Grant@ (i.e. with browser client interaction) and @App-only@ (i.e. Client Credentials) authentication flows are supported. The former is useful when a user needs to login and delegate some permissions to the application (i.e. accessing personal data), whereas the second is for server processes and automation accounts.
 module Network.OAuth2.Provider.AzureAD (
     AzureAD
+    -- * Environment variables
+    , envClientId
+    , envClientSecret
+    , envTenantId
     -- * App flow
     , azureADApp
     -- * Delegated permissions OAuth2 flow
     , OAuthCfg(..)
     , AzureADUser
     , azureOAuthADApp
+    -- * Exceptions
+    , AzureADException(..)
     ) where
 
 -- import Data.String (IsString(..))
 -- import GHC.Generics
+
+import Control.Monad.IO.Class (MonadIO(..))
+import Control.Exception (Exception(..))
+import System.Environment (lookupEnv)
 
 -- aeson
 import Data.Aeson
@@ -27,10 +38,12 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 -- hoauth2
 import Network.OAuth.OAuth2 (ClientAuthenticationMethod(..), authGetJSON)
-import Network.OAuth2.Experiment (IdpApplication(..), Idp(..), IdpUserInfo, GrantTypeFlow(..), ClientId(..), ClientSecret, Scope, AuthorizeState)
+import Network.OAuth2.Experiment (IdpApplication(..), Idp(..), IdpUserInfo, GrantTypeFlow(..), ClientId(..), ClientSecret(..), Scope, AuthorizeState)
 -- text
 import qualified Data.Text as T (Text)
-import qualified Data.Text.Lazy as TL (Text)
+import qualified Data.Text.Lazy as TL (Text, pack)
+-- unliftio
+import UnliftIO.Exception (throwIO, Typeable)
 -- uri-bytestring
 import URI.ByteString (URI)
 import URI.ByteString.QQ (uri)
@@ -38,6 +51,29 @@ import URI.ByteString.QQ (uri)
 
 data AzureAD = AzureAD deriving (Eq, Show)
 
+-- | @AZURE_CLIENT_ID@
+envClientId :: MonadIO f => f ClientId
+envClientId = env ClientId "AZURE_CLIENT_ID"
+-- | @AZURE_TENANT_ID@
+envTenantId :: MonadIO f => f TL.Text
+envTenantId = env id "AZURE_TENANT_ID"
+-- | @AZURE_CLIENT_SECRET@
+envClientSecret :: MonadIO f => f ClientSecret
+envClientSecret = env ClientSecret "AZURE_CLIENT_SECRET"
+
+
+env :: MonadIO m => (TL.Text -> b) -> String -> m b
+env mk e = do
+  me <- liftIO $ lookupEnv e
+  case me of
+    Nothing -> throwIO $ AADNoEnvVar e
+    Just x -> pure $ (mk . TL.pack) x
+
+data AzureADException = AADNoEnvVar String deriving (Typeable)
+instance Exception AzureADException
+instance Show AzureADException where
+  show = \case
+    AADNoEnvVar e -> unwords ["Env var", e, "not found"]
 
 -- * App-only flow
 
@@ -49,16 +85,22 @@ data AzureAD = AzureAD deriving (Eq, Show)
 --
 -- also be aware to find the right client id.
 -- see https://stackoverflow.com/a/70670961
-azureADApp :: TL.Text -- ^ application name
-           -> ClientId -> ClientSecret
+--
+--
+-- Throws 'AzureADException' if @AZURE_CLIENT_ID@ and/or @AZURE_CLIENT_SECRET@ credentials are not found in the environment
+azureADApp :: MonadIO m =>
+              TL.Text -- ^ application name
            -> [Scope] -- ^ scopes
-           -> IdpApplication 'ClientCredentials AzureAD
-azureADApp appname clid sec scopes = defaultAzureADApp{
-  idpAppName = appname
-  , idpAppClientId = clid
-  , idpAppClientSecret = sec
-  , idpAppScope = Set.fromList (scopes <> ["offline_access"])
-  }
+           -> m (IdpApplication 'ClientCredentials AzureAD)
+azureADApp appname scopes = do
+  clid <- envClientId
+  sec <- envClientSecret
+  pure $ defaultAzureADApp{
+    idpAppName = appname
+    , idpAppClientId = clid
+    , idpAppClientSecret = sec
+    , idpAppScope = Set.fromList (scopes <> ["offline_access"])
+    }
 
 defaultAzureADApp :: IdpApplication 'ClientCredentials AzureAD
 defaultAzureADApp =
@@ -79,8 +121,6 @@ type instance IdpUserInfo AzureAD = AzureADUser
 -- | Configuration object of the OAuth2 application
 data OAuthCfg = OAuthCfg {
   oacAppName :: TL.Text -- ^ application name
-  , oacClientId :: ClientId -- ^ app client ID : see https://stackoverflow.com/a/70670961
-  , oacClientSecret :: ClientSecret -- ^ app client secret "
   , oacScopes :: [Scope]  -- ^ OAuth2 and OIDC scopes
   , oacAuthState :: AuthorizeState -- ^ OAuth2 'state' (a random string, https://www.rfc-editor.org/rfc/rfc6749#section-10.12 )
   , oacRedirectURI :: URI -- ^ OAuth2 redirect URI
@@ -96,16 +136,23 @@ data OAuthCfg = OAuthCfg {
 --
 -- also be aware to find the right client id.
 -- see https://stackoverflow.com/a/70670961
-azureOAuthADApp :: OAuthCfg -- ^ OAuth configuration
-                -> IdpApplication 'AuthorizationCode AzureAD
-azureOAuthADApp (OAuthCfg appname clid sec scopes authstate reduri) = defaultAzureOAuthADApp{
-  idpAppName = appname
-  , idpAppClientId = clid
-  , idpAppClientSecret = sec
-  , idpAppScope = Set.fromList (scopes <> ["openid", "offline_access"])
-  , idpAppAuthorizeState = authstate
-  , idpAppRedirectUri = reduri
-  }
+--
+--
+-- Throws 'AzureADException' if @AZURE_CLIENT_ID@ and/or @AZURE_CLIENT_SECRET@ credentials are not found in the environment
+azureOAuthADApp :: MonadIO m =>
+                   OAuthCfg -- ^ OAuth configuration
+                -> m (IdpApplication 'AuthorizationCode AzureAD)
+azureOAuthADApp (OAuthCfg appname scopes authstate reduri) = do
+  clid <- envClientId
+  sec <- envClientSecret
+  pure $ defaultAzureOAuthADApp{
+    idpAppName = appname
+    , idpAppClientId = clid
+    , idpAppClientSecret = sec
+    , idpAppScope = Set.fromList (scopes <> ["openid", "offline_access"])
+    , idpAppAuthorizeState = authstate
+    , idpAppRedirectUri = reduri
+    }
 
 defaultAzureOAuthADApp :: IdpApplication 'AuthorizationCode AzureAD
 defaultAzureOAuthADApp =

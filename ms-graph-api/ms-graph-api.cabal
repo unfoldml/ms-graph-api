@@ -18,7 +18,8 @@ tested-with:         GHC == 9.2.8
 library
   default-language:    Haskell2010
   hs-source-dirs:      src
-  exposed-modules:     MSGraphAPI.ChangeNotifications.Subscription
+  exposed-modules:     MSGraphAPI
+                       MSGraphAPI.ChangeNotifications.Subscription
                        MSGraphAPI.User
                        MSGraphAPI.Users.User
                        MSGraphAPI.Users.Group
@@ -30,6 +31,7 @@ library
                      , bytestring
                      , containers
                      , hoauth2 == 2.6.0
+                     , http-client-tls >= 0.3
                      , http-types
                      , modern-uri
                      , req
@@ -46,27 +48,6 @@ library
                        DeriveFunctor
                        DerivingStrategies
                        LambdaCase
-
-
--- test-suite spec
---   default-language:    Haskell2010
---   type:                exitcode-stdio-1.0
---   hs-source-dirs:      test
---   main-is:             Spec.hs
---   other-modules:       LibSpec
---   build-depends:       base
---                      , ms-graph-api
---                      , hspec
---                      , QuickCheck
---   ghc-options:         -Wall
---                        -Wcompat
---                        -Widentities
---                        -Wincomplete-record-updates
---                        -Wincomplete-uni-patterns
---                        -Wmissing-export-lists
---                        -Wmissing-home-modules
---                        -Wpartial-fields
---                        -Wredundant-constraints
 
 source-repository head
   type:     git

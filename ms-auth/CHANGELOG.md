@@ -8,13 +8,18 @@ and this project adheres to the
 
 ## Unreleased
 
-defaultAzureCredential - to mimic the behaviour of the Microsoft Identity SDK
-
-Breaking change:
-
-module Network.OAuth2.JWT is not exposed anymore
-
 ## 0.3.0.0
+
+defaultAzureCredential - simplified version of the Microsoft Identity SDK
+
+introduced MSAuth module that re-exports internal functions
+
+Breaking changes:
+
+- module Network.OAuth2.JWT is not exposed anymore
+- OAuthCfg does not contain fields for client ID and secret anymore
+- client ID and client secret can only be loaded from environment variables
+- Network.OAuth2.Provider.AzureAD azureADApp and azureOAuthADApp return in MonadIO since they look up client ID and secret from the environment
 
 ## 0.1.0.0
 

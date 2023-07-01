@@ -27,6 +27,9 @@ executable ms-graph-api-test
   hs-source-dirs:      app
   main-is:             Main.hs
   build-depends:       base
+                     , aeson
+                     , aeson-pretty
+                     , bytestring
                      , hoauth2 == 2.6.0
                      , http-client
                      , http-client-tls >= 0.3

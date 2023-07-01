@@ -10,6 +10,12 @@ and this project adheres to the
 
 
 
+## 0.8.0.0
+
+MSGraphAPI.Files.DriveItem
+
+
+
 
 ## 0.7.0.0
 

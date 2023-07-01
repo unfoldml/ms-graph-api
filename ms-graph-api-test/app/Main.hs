@@ -6,6 +6,10 @@ module Main (main) where
 
 import Control.Monad.IO.Class (MonadIO(..))
 
+-- aeson-pretty
+import qualified Data.Aeson.Encode.Pretty as A (encodePretty)
+-- bytestring
+import qualified Data.ByteString.Lazy.Char8 as LBS (putStrLn)
 -- hoauth2
 import Network.OAuth.OAuth2 (OAuth2Token(..))
 import Network.OAuth2.Experiment (IdpApplication, GrantTypeFlow(..))
@@ -16,9 +20,10 @@ import Network.HTTP.Client.TLS (tlsManagerSettings)
 -- req
 import Network.HTTP.Req (runReq, defaultHttpConfig, httpConfigAltManager)
 -- scotty
-import Web.Scotty.Trans (ScottyT, scottyT, get, html, RoutePattern, middleware)
+import Web.Scotty.Trans (ScottyT, scottyT, get, text, html, RoutePattern, middleware)
 -- text
 import qualified Data.Text as T (unpack)
+import qualified Data.Text.Lazy.Encoding as TL (decodeUtf8)
 import qualified Data.Text.Lazy as TL (Text, pack)
 -- transformers
 import Control.Monad.Trans.Reader (runReaderT)
@@ -29,9 +34,11 @@ import URI.ByteString.QQ (uri)
 -- wai-extra
 import Network.Wai.Middleware.RequestLogger (logStdoutDev)
 
+import qualified MSGraphAPI.Files.DriveItem as MSDI (listRootChildrenMe)
+import qualified MSGraphAPI.Users.Group as MSGU (getMeJoinedTeams)
 import qualified MSGraphAPI.Users.User as MSG (getMe, User(..))
 import Network.OAuth2.Provider.AzureAD (OAuthCfg(..), azureOAuthADApp, AzureAD)
-import Network.OAuth2.Session (Tokens, newTokens, tokensToList, withAADUser, loginEndpoint, replyEndpoint, UserSub, Scotty, Action)
+import MSAuth (applyDotEnv, Tokens, newTokens, tokensToList, withAADUser, loginEndpoint, replyEndpoint, UserSub, Scotty, Action)
 
 
 main :: IO ()
@@ -40,15 +47,19 @@ main = server
 server :: MonadIO m => m ()
 server = do
   ts <- newTokens
+  applyDotEnv (Just ".env")
   mgr <- liftIO $ newManager tlsManagerSettings
+  ip <- idpApp
   let
     runR r = runReaderT r ts
   scottyT 3000 runR $ do
     middleware logStdoutDev
-    loginEndpoint idpApp "/oauth/login"
-    replyEndpoint idpApp ts mgr "/oauth/reply"
+    loginEndpoint ip "/oauth/login"
+    replyEndpoint ip ts mgr "/oauth/reply"
     allTokensEndpoint ts "/tokens"
     currentUsersEndpoint ts (Just mgr) "/me"
+    meFilesEndpoint ts (Just mgr) "/me/files"
+    meTeamsEndpoint ts (Just mgr) "/me/teams"
 
 -- currentUserEndpoint :: MonadIO m =>
 --                        Tokens UserSub OAuth2Token
@@ -61,6 +72,38 @@ server = do
 --     uname = MSG.uDisplayName u
 --     h = TL.pack $ unwords ["<html>", "<h1>", T.unpack uname, "</h1>","</html>"]
 --   html h
+
+meTeamsEndpoint :: (MonadIO m) =>
+                   Tokens a OAuth2Token
+                -> Maybe Manager -> RoutePattern -> Scotty m ()
+meTeamsEndpoint ts mmgr pth = get pth $ do
+    tsl <- tokensToList ts
+    let
+      f (_, oat) = do
+        let
+          t = accessToken oat
+        item <- runReq defaultHttpConfig{ httpConfigAltManager = mmgr } $ MSGU.getMeJoinedTeams t
+        let
+          js = A.encodePretty item
+        pure js
+    rows <- traverse f tsl
+    text $ TL.decodeUtf8 $ mconcat rows
+
+meFilesEndpoint :: (MonadIO m) =>
+                   Tokens a OAuth2Token
+                -> Maybe Manager -> RoutePattern -> Scotty m ()
+meFilesEndpoint ts mmgr pth = get pth $ do
+    tsl <- tokensToList ts
+    let
+      f (_, oat) = do
+        let
+          t = accessToken oat
+        item <- runReq defaultHttpConfig{ httpConfigAltManager = mmgr } $ MSDI.listRootChildrenMe  t
+        let
+          js = A.encodePretty item
+        pure js
+    rows <- traverse f tsl
+    text $ TL.decodeUtf8 $ mconcat rows
 
 currentUsersEndpoint :: (MonadIO m) =>
                         Tokens a OAuth2Token
@@ -95,14 +138,12 @@ table mm = TL.pack ("<table>" <> foldMap insf mm <> "</table>")
 
 
 -- also double check https://stackoverflow.com/a/63929994/2890063 in the AAD app manifest
-idpApp :: IdpApplication 'AuthorizationCode AzureAD
+idpApp :: MonadIO m => m (IdpApplication 'AuthorizationCode AzureAD)
 idpApp = azureOAuthADApp (OAuthCfg
                          "ms-graph-api-test"
-                         "53647139-affd-4ec6-b83a-e41323f33240"
-                         "4C68Q~sGVNAqdr_jGERbi68oSE4kjNtmt1Ilmbxx"
-                         ["profile", "email", "User.Read"]
+                         ["profile", "email", "User.Read", "Files.Read", "Team.ReadBasic.All"]
                          "abcd1234"
-                         [uri|https://66b3-213-89-187-253.ngrok-free.app/oauth/reply|]
+                         [uri|https://66e7-213-89-187-253.ngrok-free.app/oauth/reply|]
                        )
 
 

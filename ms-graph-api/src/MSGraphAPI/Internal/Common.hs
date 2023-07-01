@@ -16,8 +16,11 @@ module MSGraphAPI.Internal.Common (
   --   -- ** catch HTTP exceptions
   -- , postE
   -- * running requests
+  , run
   , runReq
   , tryReq
+  -- * HTTP(S) connections
+  , withTLS
   -- * JSON : aeson helpers
   , Collection(..)
   , aesonOptions
@@ -42,10 +45,12 @@ import qualified Data.ByteString.Lazy.Char8 as LBS8 (pack, unpack, putStrLn)
 -- hoauth2
 import Network.OAuth.OAuth2 (OAuth2Token(..))
 import Network.OAuth.OAuth2.Internal (AccessToken(..), ExchangeToken(..), RefreshToken(..), OAuth2Error, IdToken(..))
+-- http-client-tls
+import Network.HTTP.Client.TLS (newTlsManager)
 -- modern-uri
 import Text.URI (URI, mkURI)
 -- req
-import Network.HTTP.Req (Req, runReq, HttpException(..), defaultHttpConfig, req, Option, (=:), GET(..), POST(..), PUT(..), Url, Scheme(..), useHttpsURI, https, (/:), ReqBodyJson(..), NoReqBody(..), oAuth2Bearer, HttpResponse(..), jsonResponse, JsonResponse, lbsResponse, LbsResponse, bsResponse, BsResponse, responseBody)
+import Network.HTTP.Req (Req, runReq, HttpException(..), HttpConfig(..), defaultHttpConfig, req, Option, (=:), GET(..), POST(..), PUT(..), Url, Scheme(..), useHttpsURI, https, (/:), ReqBodyJson(..), NoReqBody(..), oAuth2Bearer, HttpResponse(..), jsonResponse, JsonResponse, lbsResponse, LbsResponse, bsResponse, BsResponse, responseBody)
 -- text
 import Data.Text (Text, pack, unpack)
 -- unliftio
@@ -61,7 +66,20 @@ tryReq :: Req a -> Req (Either HttpException a)
 tryReq = try
 
 
+-- | Create a new TLS manager, which should be reused throughout the program
+withTLS :: MonadIO m =>
+           (HttpConfig -> m b) -- ^ user program
+        -> m b
+withTLS act = do
+  mgr <- newTlsManager
+  let
+    hc = defaultHttpConfig { httpConfigAltManager = Just mgr }
+  act hc
 
+-- | Run a 'Req' computation
+run :: MonadIO m =>
+       HttpConfig -> Req a -> m (Either HttpException a)
+run hc = runReq hc . tryReq
 
 
 -- * REST verbs
@@ -135,9 +153,13 @@ msGraphReqConfig (AccessToken ttok) uriRest = (url, os)
 -- | a collection of items with key @value@
 data Collection a = Collection {
   cValue :: [a]
+  , cNextLink :: Maybe Text
                                } deriving (Eq, Show, Generic)
+instance A.ToJSON a => A.ToJSON (Collection a) 
 instance A.FromJSON a => A.FromJSON (Collection a) where
-  parseJSON = A.genericParseJSON (aesonOptions "c")
+  parseJSON = A.withObject "Collection" $ \o -> Collection <$>
+    o A..: "value" <*>
+    o A..:? "@odata.nextLink"
 
 -- | drop the prefix and lowercase first character
 --

@@ -1,5 +1,13 @@
--- | User
-module MSGraphAPI.Users.Group where
+-- | Users.Group
+module MSGraphAPI.Users.Group (
+  -- * Teams
+  getUserJoinedTeams
+  , getMeJoinedTeams
+  -- * Drive items
+  , getGroupsDriveItems
+  -- * types
+  , Group(..)
+                              )where
 
 import GHC.Generics (Generic(..))
 
@@ -25,8 +33,9 @@ data Group = Group {
                    } deriving (Eq, Ord, Show, Generic)
 instance A.FromJSON Group where
   parseJSON = A.genericParseJSON (MSG.aesonOptions "g")
+instance A.ToJSON Group  
 
--- | Get the teams in Microsoft Teams that the user is a direct member of.
+-- | Get the teams in Microsoft Teams that the given user is a direct member of.
 --
 -- @GET \/users\/{id | user-principal-name}\/joinedTeams@
 --
@@ -34,6 +43,14 @@ instance A.FromJSON Group where
 getUserJoinedTeams :: Text -- ^ User ID
                    -> AccessToken -> Req (MSG.Collection Group)
 getUserJoinedTeams uid = MSG.get ["users", uid, "joinedTeams"] mempty
+
+-- | Get the teams in Microsoft Teams that the current user is a direct member of.
+--
+-- @GET \/me\/joinedTeams@
+--
+-- https://learn.microsoft.com/en-us/graph/api/user-list-joinedteams?view=graph-rest-1.0&tabs=http
+getMeJoinedTeams :: AccessToken -> Req (MSG.Collection Group)
+getMeJoinedTeams = MSG.get ["me", "joinedTeams"] mempty
 
 -- | Get the 'DriveItem's in the 'Group' storage, starting from the root item
 --
