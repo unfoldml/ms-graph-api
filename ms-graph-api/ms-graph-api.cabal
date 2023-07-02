@@ -1,5 +1,5 @@
 name:                ms-graph-api
-version:             0.8.0.0
+version:             0.9.0.0
 synopsis:            Microsoft Graph API
 description:         Bindings to the Microsoft Graph API
 homepage:            https://github.com/unfoldml/ms-graph-api
@@ -24,6 +24,7 @@ library
                        MSGraphAPI.Users.User
                        MSGraphAPI.Users.Group
                        MSGraphAPI.Drive
+                       MSGraphAPI.Files.Drive
                        MSGraphAPI.Files.DriveItem
   other-modules:       MSGraphAPI.Internal.Common
   build-depends:       base >= 4.7 && < 5

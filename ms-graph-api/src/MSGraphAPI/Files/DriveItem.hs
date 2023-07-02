@@ -1,3 +1,4 @@
+-- | Files.DriveItem
 module MSGraphAPI.Files.DriveItem (
   -- * list items
   listRootChildrenMe

@@ -9,12 +9,17 @@ and this project adheres to the
 ## Unreleased
 
 
+## 0.9.0.0
+
+MSGraphAPI.Files.Drive
+
 
 ## 0.8.0.0
 
-MSGraphAPI.Files.DriveItem
+MSGraphAPI.Files.DriveItem :
+- custom FromJSON instance using a sum type for the various types of drive item. Makes it convenient for users to pattern match on type. So far only File, Folder and Package drive item types are parsed further.
 
-
+New MSGraphAPI module to re-expose internals
 
 
 ## 0.7.0.0
