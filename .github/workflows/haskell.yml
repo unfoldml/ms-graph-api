@@ -43,10 +43,10 @@ jobs:
       - name: Get dependencies
         run: stack build --resolver=${{ matrix.resolver }} --only-dependencies --test --bench --no-run-tests --no-run-benchmarks
 
-      - name: Build code
+      - name: Build
         run: stack build --resolver=${{ matrix.resolver }} --test --bench --no-run-tests --no-run-benchmarks
 
-      - name: Test code
+      - name: Test
         run: stack test --resolver=${{ matrix.resolver }}
 
       # - name: Setup compiler, build and test all packages
