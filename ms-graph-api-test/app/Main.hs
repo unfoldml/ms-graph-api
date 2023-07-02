@@ -5,11 +5,12 @@
 module Main (main) where
 
 import Control.Monad.IO.Class (MonadIO(..))
+import Data.Maybe (fromMaybe)
 
 -- aeson-pretty
 import qualified Data.Aeson.Encode.Pretty as A (encodePretty)
 -- bytestring
-import qualified Data.ByteString.Lazy.Char8 as LBS (putStrLn)
+import qualified Data.ByteString.Lazy.Char8 as LBS (putStrLn, pack)
 -- hoauth2
 import Network.OAuth.OAuth2 (OAuth2Token(..))
 import Network.OAuth2.Experiment (IdpApplication, GrantTypeFlow(..))
@@ -18,7 +19,7 @@ import Network.HTTP.Client (Manager, newManager)
 -- http-client-tls
 import Network.HTTP.Client.TLS (tlsManagerSettings)
 -- req
-import Network.HTTP.Req (runReq, defaultHttpConfig, httpConfigAltManager)
+import Network.HTTP.Req (HttpConfig, runReq, defaultHttpConfig, httpConfigAltManager)
 -- scotty
 import Web.Scotty.Trans (ScottyT, scottyT, get, text, html, RoutePattern, middleware)
 -- text
@@ -34,8 +35,10 @@ import URI.ByteString.QQ (uri)
 -- wai-extra
 import Network.Wai.Middleware.RequestLogger (logStdoutDev)
 
+import qualified MSGraphAPI as MSG (Collection(..), run, withTLS)
+import qualified MSGraphAPI.Files.Drive as MSD (Drive(..), listDrivesGroup)
 import qualified MSGraphAPI.Files.DriveItem as MSDI (listRootChildrenMe)
-import qualified MSGraphAPI.Users.Group as MSGU (getMeJoinedTeams)
+import qualified MSGraphAPI.Users.Group as MSGU (Group(..), getMeJoinedTeams, getGroupsDriveItems)
 import qualified MSGraphAPI.Users.User as MSG (getMe, User(..))
 import Network.OAuth2.Provider.AzureAD (OAuthCfg(..), azureOAuthADApp, AzureAD)
 import MSAuth (applyDotEnv, Tokens, newTokens, tokensToList, withAADUser, loginEndpoint, replyEndpoint, UserSub, Scotty, Action)
@@ -48,41 +51,55 @@ server :: MonadIO m => m ()
 server = do
   ts <- newTokens
   applyDotEnv (Just ".env")
-  mgr <- liftIO $ newManager tlsManagerSettings
   ip <- idpApp
-  let
-    runR r = runReaderT r ts
-  scottyT 3000 runR $ do
-    middleware logStdoutDev
-    loginEndpoint ip "/oauth/login"
-    replyEndpoint ip ts mgr "/oauth/reply"
-    allTokensEndpoint ts "/tokens"
-    currentUsersEndpoint ts (Just mgr) "/me"
-    meFilesEndpoint ts (Just mgr) "/me/files"
-    meTeamsEndpoint ts (Just mgr) "/me/teams"
+  MSG.withTLS $ \hc mgr -> do
+    let
+      runR r = runReaderT r ts
+    scottyT 3000 runR $ do
+      middleware logStdoutDev
+      loginEndpoint ip "/oauth/login"
+      replyEndpoint ip ts mgr "/oauth/reply"
 
--- currentUserEndpoint :: MonadIO m =>
---                        Tokens UserSub OAuth2Token
---                     -> RoutePattern -> Scotty m ()
--- currentUserEndpoint ts pth = get pth $ withAADUser ts "/oauth/login" $ \oat -> do
---   let
---     t = accessToken oat
---   u <- runReq defaultHttpConfig $ MSG.getMe t
---   let
---     uname = MSG.uDisplayName u
---     h = TL.pack $ unwords ["<html>", "<h1>", T.unpack uname, "</h1>","</html>"]
---   html h
+      meGroupDrivesEndpoint ts hc "/me/group/drives"
+      currentUsersEndpoint ts hc "/me"
+      meFilesEndpoint ts hc "/me/files"
+      meTeamsEndpoint ts hc "/me/teams"
 
-meTeamsEndpoint :: (MonadIO m) =>
-                   Tokens a OAuth2Token
-                -> Maybe Manager -> RoutePattern -> Scotty m ()
-meTeamsEndpoint ts mmgr pth = get pth $ do
+
+groupDriveItems t = do
+  gs <- MSG.cValue <$> MSGU.getMeJoinedTeams t
+  traverse (\g -> MSGU.getGroupsDriveItems (MSGU.gId g) t ) gs
+
+meGroupDrivesEndpoint :: (MonadIO m) =>
+                         Tokens a OAuth2Token
+                      -> HttpConfig -> RoutePattern -> Scotty m ()
+meGroupDrivesEndpoint ts hc pth = get pth $ do
     tsl <- tokensToList ts
     let
       f (_, oat) = do
         let
           t = accessToken oat
-        item <- runReq defaultHttpConfig{ httpConfigAltManager = mmgr } $ MSGU.getMeJoinedTeams t
+        iteme <- MSG.run hc $ groupDriveItems t
+        case iteme of
+          Right item -> pure $ A.encodePretty item
+          Left e -> pure $ LBS.pack $ show e
+    rows <- traverse f tsl
+    text $ TL.decodeUtf8 $ mconcat rows
+
+
+
+
+
+meTeamsEndpoint :: (MonadIO m) =>
+                   Tokens a OAuth2Token
+                -> HttpConfig -> RoutePattern -> Scotty m ()
+meTeamsEndpoint ts hc pth = get pth $ do
+    tsl <- tokensToList ts
+    let
+      f (_, oat) = do
+        let
+          t = accessToken oat
+        item <- runReq hc $ MSGU.getMeJoinedTeams t
         let
           js = A.encodePretty item
         pure js
@@ -91,14 +108,14 @@ meTeamsEndpoint ts mmgr pth = get pth $ do
 
 meFilesEndpoint :: (MonadIO m) =>
                    Tokens a OAuth2Token
-                -> Maybe Manager -> RoutePattern -> Scotty m ()
-meFilesEndpoint ts mmgr pth = get pth $ do
+                -> HttpConfig -> RoutePattern -> Scotty m ()
+meFilesEndpoint ts hc pth = get pth $ do
     tsl <- tokensToList ts
     let
       f (_, oat) = do
         let
           t = accessToken oat
-        item <- runReq defaultHttpConfig{ httpConfigAltManager = mmgr } $ MSDI.listRootChildrenMe  t
+        item <- runReq hc $ MSDI.listRootChildrenMe  t
         let
           js = A.encodePretty item
         pure js
@@ -107,15 +124,15 @@ meFilesEndpoint ts mmgr pth = get pth $ do
 
 currentUsersEndpoint :: (MonadIO m) =>
                         Tokens a OAuth2Token
-                     -> Maybe Manager -- ^ if Nothing it uses the default implicit connection manager
+                     -> HttpConfig
                      -> RoutePattern -> Scotty m ()
-currentUsersEndpoint ts mmgr pth = get pth $ do
+currentUsersEndpoint ts hc pth = get pth $ do
     tsl <- tokensToList ts
     let
       f (_, oat) = do
         let
           t = accessToken oat
-        usr <- runReq defaultHttpConfig{ httpConfigAltManager = mmgr } $ MSG.getMe t
+        usr <- runReq hc $ MSG.getMe t
         let
           row = unwords ["<tr><td>", show usr, "</td></tr>"]
         pure row
@@ -141,7 +158,7 @@ table mm = TL.pack ("<table>" <> foldMap insf mm <> "</table>")
 idpApp :: MonadIO m => m (IdpApplication 'AuthorizationCode AzureAD)
 idpApp = azureOAuthADApp (OAuthCfg
                          "ms-graph-api-test"
-                         ["profile", "email", "User.Read", "Files.Read", "Team.ReadBasic.All"]
+                         ["profile", "email", "User.Read", "Files.Read.All", "Team.ReadBasic.All"]
                          "abcd1234"
                          [uri|https://66e7-213-89-187-253.ngrok-free.app/oauth/reply|]
                        )

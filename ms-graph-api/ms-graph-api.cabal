@@ -27,11 +27,12 @@ library
                        MSGraphAPI.Files.Drive
                        MSGraphAPI.Files.DriveItem
   other-modules:       MSGraphAPI.Internal.Common
-  build-depends:       base >= 4.7 && < 5
-                     , aeson
+  build-depends:       aeson
+                     , base >= 4.7 && < 5
                      , bytestring
                      , containers
                      , hoauth2 == 2.6.0
+                     , http-client >= 0.7.13.1
                      , http-client-tls >= 0.3
                      , http-types
                      , modern-uri

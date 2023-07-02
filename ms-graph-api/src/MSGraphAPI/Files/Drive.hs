@@ -5,25 +5,25 @@ module MSGraphAPI.Files.Drive (
   , Drive(..)
                               ) where
 
-import Control.Applicative (Alternative(..))
-import Data.Int (Int32)
+-- import Control.Applicative (Alternative(..))
+-- import Data.Int (Int32)
 import GHC.Generics (Generic(..))
 
 -- aeson
-import qualified Data.Aeson as A (ToJSON(..), FromJSON(..), Value, genericParseJSON, (.:), (.:?), Object, withObject, Key)
-import qualified Data.Aeson.Types as A (Parser)
+import qualified Data.Aeson as A (ToJSON(..), FromJSON(..), genericParseJSON)
+-- import qualified Data.Aeson.Types as A (Parser)
 -- bytestring
-import qualified Data.ByteString.Lazy as LBS (ByteString)
+-- import qualified Data.ByteString.Lazy as LBS (ByteString)
 -- hoauth
 import Network.OAuth.OAuth2.Internal (AccessToken(..))
 -- req
 import Network.HTTP.Req (Req)
 -- text
-import Data.Text (Text, pack, unpack)
+import Data.Text (Text)
 -- time
 import Data.Time (ZonedTime)
 
-import qualified MSGraphAPI.Internal.Common as MSG (get, getLbs, post, Collection, aesonOptions)
+import qualified MSGraphAPI.Internal.Common as MSG (get, Collection, aesonOptions)
 
 -- | The top-level object that represents a user's OneDrive or a document library in SharePoint.
 --
@@ -53,4 +53,4 @@ listDrivesMe = MSG.get ["me", "drives"] mempty
 -- @GET \/groups\/{groupId}\/drives@
 listDrivesGroup :: Text -- ^ group ID
                 -> AccessToken -> Req (MSG.Collection Drive)
-listDrivesGroup gid = MSG.get ["groups", gid, "drives"]
+listDrivesGroup gid = MSG.get ["groups", gid, "drives"] mempty

@@ -12,15 +12,15 @@ module MSGraphAPI.Users.Group (
 import GHC.Generics (Generic(..))
 
 -- aeson
-import qualified Data.Aeson as A (ToJSON(..), FromJSON(..), eitherDecode, genericParseJSON, defaultOptions, Options(..), withObject, withText, (.:), (.:?), object, (.=))
+import qualified Data.Aeson as A (ToJSON(..), FromJSON(..), genericParseJSON)
 -- hoauth
 import Network.OAuth.OAuth2.Internal (AccessToken(..))
 -- req
 import Network.HTTP.Req (Req)
 -- text
-import Data.Text (Text, pack, unpack)
+import Data.Text (Text)
 
-import qualified MSGraphAPI.Internal.Common as MSG (Collection(..), get, post, aesonOptions)
+import qualified MSGraphAPI.Internal.Common as MSG (Collection(..), get, aesonOptions)
 import MSGraphAPI.Files.DriveItem (DriveItem)
 
 -- | Groups are collections of principals with shared access to resources in Microsoft services or in your app. Different principals such as users, other groups, devices, and applications can be part of groups. 
@@ -33,7 +33,7 @@ data Group = Group {
                    } deriving (Eq, Ord, Show, Generic)
 instance A.FromJSON Group where
   parseJSON = A.genericParseJSON (MSG.aesonOptions "g")
-instance A.ToJSON Group  
+instance A.ToJSON Group
 
 -- | Get the teams in Microsoft Teams that the given user is a direct member of.
 --
@@ -57,6 +57,8 @@ getMeJoinedTeams = MSG.get ["me", "joinedTeams"] mempty
 -- @GET \/groups\/{group-id}\/drive\/root\/children@
 --
 -- https://learn.microsoft.com/en-us/graph/api/driveitem-list-children?view=graph-rest-1.0&tabs=http
+--
+-- NB : requires @Files.Read.All@, since it tries to access all files a user has access to.
 getGroupsDriveItems :: Text -- ^ Group ID
                     -> AccessToken -> Req (MSG.Collection DriveItem)
 getGroupsDriveItems gid = MSG.get ["groups", gid, "drive", "root", "children"] mempty

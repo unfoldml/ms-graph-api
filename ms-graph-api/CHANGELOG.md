@@ -13,6 +13,9 @@ and this project adheres to the
 
 MSGraphAPI.Files.Drive
 
+*Breaking changes*
+- withTLS changed signature: the inner continuation has an additional Manager parameter
+
 
 ## 0.8.0.0
 
@@ -28,8 +31,7 @@ MSGraphAPI.ChangeNotifications.Subscription:
 - add createSubscription
 
 *Breaking changes*
-
-Moved the Network/* module hierarchy to the `ms-auth` package shared with `ms-azure-api`.
+- Moved the Network/* module hierarchy to the `ms-auth` package shared with `ms-azure-api`.
 
 ## 0.6.0.0
 

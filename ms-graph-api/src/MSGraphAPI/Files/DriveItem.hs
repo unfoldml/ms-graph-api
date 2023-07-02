@@ -18,7 +18,7 @@ import Data.Int (Int32)
 import GHC.Generics (Generic(..))
 
 -- aeson
-import qualified Data.Aeson as A (ToJSON(..), FromJSON(..), Value, genericParseJSON, (.:), (.:?), Object, withObject, Key)
+import qualified Data.Aeson as A (ToJSON(..), FromJSON(..), genericParseJSON, (.:), Object, withObject, Key)
 import qualified Data.Aeson.Types as A (Parser)
 -- bytestring
 import qualified Data.ByteString.Lazy as LBS (ByteString)
@@ -27,11 +27,11 @@ import Network.OAuth.OAuth2.Internal (AccessToken(..))
 -- req
 import Network.HTTP.Req (Req)
 -- text
-import Data.Text (Text, pack, unpack)
+import Data.Text (Text)
 -- time
-import Data.Time (LocalTime, ZonedTime)
+import Data.Time (ZonedTime)
 
-import qualified MSGraphAPI.Internal.Common as MSG (get, getLbs, post, Collection, aesonOptions)
+import qualified MSGraphAPI.Internal.Common as MSG (get, getLbs, Collection, aesonOptions)
 
 -- | The 'DriveItem' resource represents a file, folder, or other item stored in a drive.
 --

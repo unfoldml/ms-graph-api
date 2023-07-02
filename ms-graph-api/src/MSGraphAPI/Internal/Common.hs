@@ -45,6 +45,8 @@ import qualified Data.ByteString.Lazy.Char8 as LBS8 (pack, unpack, putStrLn)
 -- hoauth2
 import Network.OAuth.OAuth2 (OAuth2Token(..))
 import Network.OAuth.OAuth2.Internal (AccessToken(..), ExchangeToken(..), RefreshToken(..), OAuth2Error, IdToken(..))
+-- http-client
+import Network.HTTP.Client (Manager)
 -- http-client-tls
 import Network.HTTP.Client.TLS (newTlsManager)
 -- modern-uri
@@ -68,13 +70,13 @@ tryReq = try
 
 -- | Create a new TLS manager, which should be reused throughout the program
 withTLS :: MonadIO m =>
-           (HttpConfig -> m b) -- ^ user program
+           (HttpConfig -> Manager -> m b) -- ^ user program
         -> m b
 withTLS act = do
   mgr <- newTlsManager
   let
     hc = defaultHttpConfig { httpConfigAltManager = Just mgr }
-  act hc
+  act hc mgr
 
 -- | Run a 'Req' computation
 run :: MonadIO m =>
