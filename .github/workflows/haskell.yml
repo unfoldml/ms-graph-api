@@ -1,4 +1,4 @@
-name: ms-graph-api-CI
+name: CI
 
 on:
   push:
@@ -49,7 +49,3 @@ jobs:
       - name: Test
         run: stack test --resolver=${{ matrix.resolver }}
 
-      # - name: Setup compiler, build and test all packages
-      #   run: |
-      #     stack build --resolver ${{ matrix.stack-resolver }}
-      #     stack test
