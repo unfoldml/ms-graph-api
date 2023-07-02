@@ -10,17 +10,46 @@ defaults: { run: { shell: bash } }
 
 jobs:
   build:
-    name: stackage ${{ matrix.stack-resolver }} on ${{ matrix.os }}
+    name: stackage ${{ matrix.resolver }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        stack-resolver: ['lts-20.24']
+        resolver: ['lts-20.24']
     steps:
       - name: git checkout
         uses: actions/checkout@v3
-      - name: Setup compiler, build and test all packages
-        run: |
-          stack build --resolver ${{ matrix.stack-resolver }}
-          stack test
+      - name: Setup Haskell Compiler (stack)
+        id: setup-haskell
+        uses: haskell/actions/setup@d6a7b316f66cd8a730ed619cdc80c276df942196 # v2.4.3
+        with:
+          enable-stack: true
+          stack-no-global: true
+      - name: Cache .stack-work
+        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3.3.1
+        with:
+          path: .stack-work
+          key: stack-work-${{ matrix.os }}-${{ matrix.resolver }}-${{ hashFiles('stack.yaml', '**/*.cabal') }}-${{ hashFiles('internal/**','src/**','app/**','tests/**','benchmarks/**') }}
+          restore-keys: |
+            stack-work-${{ matrix.os }}-${{ matrix.resolver }}-${{ hashFiles('stack.yaml', '**/*.cabal') }}-
+            stack-work-${{ matrix.os }}-${{ matrix.resolver }}-
+      - name: Cache ~/.stack
+        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3.3.1
+        with:
+          path: ${{ steps.setup-haskell.outputs.stack-root }}
+          key: stack-root-${{ matrix.os }}-${{ matrix.resolver }}-${{ hashFiles('stack.yaml', '**/*.cabal') }}
+          restore-keys: stack-root-${{ matrix.os }}-${{ matrix.resolver }}-
+      - name: Get dependencies
+        run: stack build --resolver=${{ matrix.resolver }} --only-dependencies --test --bench --no-run-tests --no-run-benchmarks
+
+      - name: Build code
+        run: stack build --resolver=${{ matrix.resolver }} --test --bench --no-run-tests --no-run-benchmarks
+
+      - name: Test code
+        run: stack test --resolver=${{ matrix.resolver }}
+
+      # - name: Setup compiler, build and test all packages
+      #   run: |
+      #     stack build --resolver ${{ matrix.stack-resolver }}
+      #     stack test
