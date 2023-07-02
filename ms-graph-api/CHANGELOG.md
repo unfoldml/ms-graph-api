@@ -9,6 +9,11 @@ and this project adheres to the
 ## Unreleased
 
 
+## 0.10.0.0
+
+*Breaking changes*
+- MSGraphAPI.ChangeNotifications.Subscription : Subscription has fewer fields (the ID and TLS version fields are optional)
+
 ## 0.9.0.0
 
 MSGraphAPI.Files.Drive
