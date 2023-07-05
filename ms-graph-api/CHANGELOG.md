@@ -8,15 +8,24 @@ and this project adheres to the
 
 ## Unreleased
 
+## 0.11.0.0
+
+.Users.Group
+- add listTeamChannels
+- add listChannelMessages, listMessageReplies
+
+*Breaking changes*
+Functions in .Users.Group are now called 'list..' rather than 'get..' to correspond with the REST API
+
 
 ## 0.10.0.0
 
 *Breaking changes*
-- MSGraphAPI.ChangeNotifications.Subscription : Subscription has fewer fields (the ID and TLS version fields are optional)
+- .ChangeNotifications.Subscription : Subscription has fewer fields (the ID and TLS version fields are optional)
 
 ## 0.9.0.0
 
-MSGraphAPI.Files.Drive
+.Files.Drive
 
 *Breaking changes*
 - withTLS changed signature: the inner continuation has an additional Manager parameter
@@ -24,7 +33,7 @@ MSGraphAPI.Files.Drive
 
 ## 0.8.0.0
 
-MSGraphAPI.Files.DriveItem :
+.Files.DriveItem :
 - custom FromJSON instance using a sum type for the various types of drive item. Makes it convenient for users to pattern match on type. So far only File, Folder and Package drive item types are parsed further.
 
 New MSGraphAPI module to re-expose internals
@@ -32,7 +41,7 @@ New MSGraphAPI module to re-expose internals
 
 ## 0.7.0.0
 
-MSGraphAPI.ChangeNotifications.Subscription:
+.ChangeNotifications.Subscription:
 - add createSubscription
 
 *Breaking changes*
@@ -40,7 +49,7 @@ MSGraphAPI.ChangeNotifications.Subscription:
 
 ## 0.6.0.0
 
-MSGraphAPI.Users.Group :
+.Users.Group :
 - Group
 - getUserJoinedTeams
 - getGroupsDriveItems

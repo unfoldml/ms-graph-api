@@ -38,7 +38,7 @@ import Network.Wai.Middleware.RequestLogger (logStdoutDev)
 import qualified MSGraphAPI as MSG (Collection(..), run, withTLS)
 import qualified MSGraphAPI.Files.Drive as MSD (Drive(..), listDrivesGroup)
 import qualified MSGraphAPI.Files.DriveItem as MSDI (listRootChildrenMe)
-import qualified MSGraphAPI.Users.Group as MSGU (Group(..), getMeJoinedTeams, getGroupsDriveItems)
+import qualified MSGraphAPI.Users.Group as MSGU (Group(..), listMeJoinedTeams, listGroupsDriveItems)
 import qualified MSGraphAPI.Users.User as MSG (getMe, User(..))
 import Network.OAuth2.Provider.AzureAD (OAuthCfg(..), azureOAuthADApp, AzureAD)
 import MSAuth (applyDotEnv, Tokens, newTokens, tokensToList, withAADUser, loginEndpoint, replyEndpoint, UserSub, Scotty, Action)
@@ -67,8 +67,8 @@ server = do
 
 
 groupDriveItems t = do
-  gs <- MSG.cValue <$> MSGU.getMeJoinedTeams t
-  traverse (\g -> MSGU.getGroupsDriveItems (MSGU.gId g) t ) gs
+  gs <- MSG.cValue <$> MSGU.listMeJoinedTeams t
+  traverse (\g -> MSGU.listGroupsDriveItems (MSGU.gId g) t ) gs
 
 meGroupDrivesEndpoint :: (MonadIO m) =>
                          Tokens a OAuth2Token
@@ -99,7 +99,7 @@ meTeamsEndpoint ts hc pth = get pth $ do
       f (_, oat) = do
         let
           t = accessToken oat
-        item <- runReq hc $ MSGU.getMeJoinedTeams t
+        item <- runReq hc $ MSGU.listMeJoinedTeams t
         let
           js = A.encodePretty item
         pure js
