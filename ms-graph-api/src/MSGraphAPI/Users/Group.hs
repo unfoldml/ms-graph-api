@@ -1,4 +1,10 @@
 -- | Users.Group
+--
+-- A 'Group' is an AAD group, which can be a Microsoft 365 group, or a security group.
+--
+-- A team in Microsoft Teams is a collection of channel objects. A channel represents a topic, and therefore a logical isolation of discussion, within a team.
+--
+-- Every team is associated with a Microsoft 365 group. The group has the same ID as the team - for example, @\/groups\/{id}\/team is the same@ as @\/teams\/{id}@.
 module MSGraphAPI.Users.Group (
   -- * Teams
   -- ** Joined teams
@@ -11,6 +17,7 @@ module MSGraphAPI.Users.Group (
   , listTeamChannels
   -- ** Channel messages
   , listChannelMessages
+  , getChannelMessage
   , listMessageReplies
   -- * Drive items
   , listGroupsDriveItems
@@ -83,9 +90,19 @@ listChannelMessages ::
 listChannelMessages tid chid =
   MSG.get ["teams", tid, "channels", chid, "messages"] mempty
 
+-- | Retrieve a single message or a message reply in a channel or a chat.
+--
+-- @GET \/teams\/{team-id}\/channels\/{channel-id}\/messages\/{message-id}@
+getChannelMessage :: Text -- ^ team ID
+                  -> Text -- ^ channel ID
+                  -> Text -- ^ message ID
+                  -> AccessToken -> Req ChatMessage
+getChannelMessage tid chid mid =
+  MSG.get ["teams", tid, "channels", chid, "messages", mid] mempty
+
 -- | List all the replies to a message in a channel of a team.
 --
--- This method lists only the replies of the specified message, if any. To get the message itself, simply call get channel message.
+-- This method lists only the replies of the specified message, if any. To get the message itself, use 'getChannelMessage'.
 --
 -- GET /teams/{team-id}/channels/{channel-id}/messages/{message-id}/replies
 listMessageReplies ::
@@ -97,7 +114,7 @@ listMessageReplies tid chid mid =
   MSG.get ["teams", tid, "channels", chid, "messages", mid, "replies"] mempty
 
 
--- | An individual chat message within a channel or chat. The message can be a root message or part of a thread 
+-- | An individual chat message within a channel or chat. The message can be a root message or part of a thread
 --
 -- https://learn.microsoft.com/en-us/graph/api/resources/chatmessage?view=graph-rest-1.0
 data ChatMessage = ChatMessage {
