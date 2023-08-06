@@ -1,5 +1,7 @@
+{-# LANGUAGE TypeFamilies #-}
 module MSAzureAPI.ServiceBus where
 
+import GHC.Exts (IsList(..))
 import GHC.Generics (Generic(..))
 
 -- aeson
@@ -37,8 +39,11 @@ sendMessageBatch sn qname topic = postSBMessage sn [
   where
     qpt = qname <> "|" <> topic
 
-
 newtype MessageBatch a = MessageBatch [a] deriving (Eq, Show)
+instance IsList (MessageBatch a) where
+  type Item (MessageBatch a) = a
+  fromList = MessageBatch
+  toList (MessageBatch xs) = xs
 instance A.ToJSON a => A.ToJSON (MessageBatch a) where
   toJSON (MessageBatch xs) = A.toJSON $ map (\x -> M.singleton ("Body" :: String) x) xs
 

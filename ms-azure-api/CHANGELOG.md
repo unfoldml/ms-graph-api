@@ -14,6 +14,13 @@ ToJSON instance of Location renders the full name e.g. "West Europe"
 
 MSAzureAPI.ServiceBus
 
+add 'http-client' as an explicit dependency
+
+* breaking changes
+
+Fixed definition of 'put' to use the correct HTTP verb
+Add constructor to 'APIPlane' to reflect service bus usage
+
 ## 0.4
 
 TLS support
