@@ -3,11 +3,12 @@ module MSAzureAPI.ServiceBus where
 import GHC.Generics (Generic(..))
 
 -- aeson
-import qualified Data.Aeson as A (ToJSON(..), genericToJSON, object, (.=), ToJSONKey(..), FromJSON(..), genericParseJSON, encode)
+import qualified Data.Aeson as A (ToJSON(..), genericToJSON, object, (.=), ToJSONKey(..), FromJSON(..), genericParseJSON)
 -- containers
 import qualified Data.Map as M (Map, singleton, fromList)
 -- hoauth2
 import Network.OAuth.OAuth2.Internal (AccessToken(..))
+
 -- req
 import Network.HTTP.Req (HttpException, runReq, HttpConfig, defaultHttpConfig, Req, Url, Option, Scheme(..), header, (=:))
 -- text
@@ -17,7 +18,24 @@ import Data.Time (UTCTime, getCurrentTime)
 import Data.Time.Format (FormatTime, formatTime, defaultTimeLocale)
 import Data.Time.LocalTime (getZonedTime)
 
-import MSAzureAPI.Internal.Common (run, APIPlane(..), Location(..), locationDisplayName, (==:), get, getBs, post, getLbs, put, tryReq, aesonOptions)
+import MSAzureAPI.Internal.Common (run, APIPlane(..), Location(..), locationDisplayName, (==:), get, getBs, post, postSBMessage, getLbs, put, tryReq, aesonOptions)
+
+-- | Send a message batch to the service bus
+--
+-- https://learn.microsoft.com/en-us/rest/api/servicebus/send-message-batch#request
+sendMessageBatch :: (A.ToJSON a) =>
+                    Text -- ^ namespace
+                 -> Text -- ^ queue name
+                 -> Text -- ^ topic
+                 -> Option 'Https
+                 -> MessageBatch a
+                 -> AccessToken -> Req ()
+sendMessageBatch sn qname topic = postSBMessage sn [
+  qpt
+  , "messages"
+  ]
+  where
+    qpt = qname <> "|" <> topic
 
 
 newtype MessageBatch a = MessageBatch [a] deriving (Eq, Show)

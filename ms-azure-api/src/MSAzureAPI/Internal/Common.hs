@@ -4,11 +4,17 @@
 --
 module MSAzureAPI.Internal.Common (
   APIPlane(..)
+  -- ** PUT
   , put
+  -- ** GET
   , get
   , getBs
   , getLbs
+  -- ** POST
   , post
+  , postSBMessage
+  -- ** DELETE
+  , delete
   -- * HTTP(S) connections
   , run
   , withTLS
@@ -38,12 +44,14 @@ import Data.Maybe (listToMaybe, fromMaybe)
 import Data.Char (toLower)
 
 -- aeson
-import qualified Data.Aeson as A (ToJSON(..), FromJSON(..), genericParseJSON, defaultOptions, Options(..), withObject, withText, (.:), (.:?), object, (.=), Key, Value(..), camelTo2)
+import qualified Data.Aeson as A (ToJSON(..), encode, FromJSON(..), genericParseJSON, defaultOptions, Options(..), withObject, withText, (.:), (.:?), object, (.=), Key, Value(..), camelTo2)
 -- bytestring
 import qualified Data.ByteString as BS (ByteString)
 import qualified Data.ByteString.Char8 as BS8 (pack, unpack)
 import qualified Data.ByteString.Lazy as LBS (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as LBS8 (pack, unpack, putStrLn)
+-- http-client
+import qualified Network.HTTP.Client as L (RequestBody(..))
 -- http-client-tls
 import Network.HTTP.Client.TLS (newTlsManager)
 -- hoauth2
@@ -52,7 +60,7 @@ import Network.OAuth.OAuth2.Internal (AccessToken(..), ExchangeToken(..), Refres
 -- modern-uri
 -- import Text.URI (URI, mkURI)
 -- req
-import Network.HTTP.Req (Req, runReq, HttpConfig(..), HttpException(..), defaultHttpConfig, req, Option, (=:), GET(..), POST(..), Url, Scheme(..), useHttpsURI, https, (/:), ReqBodyJson(..), NoReqBody(..), oAuth2Bearer, HttpResponse(..), jsonResponse, JsonResponse, lbsResponse, LbsResponse, bsResponse, BsResponse, responseBody)
+import Network.HTTP.Req (Req, runReq, HttpBody(..), HttpConfig(..), HttpException(..), defaultHttpConfig, req, Option, (=:), GET(..), POST(..), PUT(..), DELETE(..), Url, Scheme(..), useHttpsURI, https, (/:), ReqBodyJson(..), NoReqBody(..), oAuth2Bearer, HttpResponse(..), jsonResponse, JsonResponse, lbsResponse, LbsResponse, bsResponse, BsResponse, responseBody)
 -- text
 import Data.Text (Text, pack, unpack)
 -- unliftio
@@ -110,6 +118,7 @@ tryReq = try
 -- https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/control-plane-and-data-plane
 data APIPlane = APManagement -- ^ Management plane (@management.azure.com@ endpoints)
               | APData Text -- ^ Data plane e.g. FileREST API
+              | APServiceBus Text -- ^ Data plane for Service Bus. The parameter is the service name
 
 
 -- | @PUT@
@@ -118,7 +127,15 @@ put :: (A.FromJSON b, A.ToJSON a) =>
     -> [Text] -- ^ URI path segments
     -> Option 'Https -- ^ request parameters etc.
     -> a -> AccessToken -> Req b
-put apiplane paths params bdy tok = responseBody <$> req POST url (ReqBodyJson bdy) jsonResponse opts
+put apiplane paths params bdy tok = responseBody <$> req PUT url (ReqBodyJson bdy) jsonResponse opts
+  where
+    opts = auth <> params
+    (url, auth) = msAzureReqConfig apiplane paths tok
+
+-- | @DELETE@
+delete :: (A.FromJSON b, A.ToJSON a) =>
+          APIPlane -> [Text] -> Option 'Https -> a -> AccessToken -> Req b
+delete apiplane paths params bdy tok = responseBody <$> req DELETE url (ReqBodyJson bdy) jsonResponse opts
   where
     opts = auth <> params
     (url, auth) = msAzureReqConfig apiplane paths tok
@@ -134,6 +151,23 @@ post apiplane paths params bdy tok = responseBody <$> req POST url (ReqBodyJson 
   where
     opts = auth <> params
     (url, auth) = msAzureReqConfig apiplane paths tok
+
+-- | Post a message or batch thereof to the Service Bus
+--
+-- see example : https://learn.microsoft.com/en-us/rest/api/servicebus/send-message-batch#example
+postSBMessage :: (A.FromJSON b, A.ToJSON a) =>
+                 Text
+              -> [Text]
+              -> Option 'Https -> a -> AccessToken -> Req b
+postSBMessage servName paths params bdy tok = responseBody <$> req POST url (ReqBodyServiceBusMessage bdy) jsonResponse opts
+  where
+    opts = auth <> params
+    (url, auth) = msAzureReqConfig (APServiceBus servName) paths tok
+
+data ReqBodyServiceBusMessage a = ReqBodyServiceBusMessage a
+instance A.ToJSON a => HttpBody (ReqBodyServiceBusMessage a) where
+  getRequestBody (ReqBodyServiceBusMessage a) = L.RequestBodyLBS (A.encode a)
+  getRequestContentType _ = Just "application/vnd.microsoft.servicebus.json"
 
 -- | @GET@
 get :: (A.FromJSON b) =>
@@ -154,6 +188,7 @@ msAzureReqConfig apiplane uriRest (AccessToken ttok) = (url, os)
     urlBase = case apiplane of
       APManagement -> "management.azure.com"
       APData ub -> ub
+      APServiceBus sn -> sn <> ".servicebus.windows.net"
     url = (https urlBase) //: uriRest
     os = oAuth2Bearer $ BS8.pack (unpack ttok)
 

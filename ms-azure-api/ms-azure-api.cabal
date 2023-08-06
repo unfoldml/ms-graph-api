@@ -33,6 +33,7 @@ library
                      , containers
                      , exceptions >= 0.10.4
                      , hoauth2 == 2.6.0
+                     , http-client
                      , http-client-tls >= 0.3.6.1
                      , http-types
                      , modern-uri
