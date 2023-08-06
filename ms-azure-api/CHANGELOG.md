@@ -8,6 +8,12 @@ and this project adheres to the
 
 ## Unreleased
 
+## 0.5.0.0
+
+ToJSON instance of Location renders the full name e.g. "West Europe"
+
+MSAzureAPI.ServiceBus
+
 ## 0.4
 
 TLS support

@@ -84,6 +84,10 @@ run :: MonadIO m =>
 run hc = runReq hc . tryReq
 
 
+
+
+
+
 -- * REST verbs
 
 put :: (A.FromJSON b, A.ToJSON a) =>
@@ -122,6 +126,13 @@ get paths params tok = responseBody <$> req GET url NoReqBody jsonResponse opts
   where
     opts = auth <> params
     (url, auth) = msGraphReqConfig tok paths
+
+-- getCollection paths params tok = do
+--   e <- tryReq (get paths params tok)
+--   case e of
+--     Right (Collection xs m) -> case m of
+--       Just ulink -> do
+--         u <- mkURI ulink
 
 -- -- | Like 'get' but catches 'HttpException's to allow pattern matching
 -- getE :: (A.FromJSON a) =>

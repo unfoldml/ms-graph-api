@@ -23,6 +23,7 @@ module MSAzureAPI.Internal.Common (
   -- *** Location
   , Location(..)
   , showLocation
+  , locationDisplayName
   -- ** JSON co\/dec
   , aesonOptions
   ) where
@@ -37,7 +38,7 @@ import Data.Maybe (listToMaybe, fromMaybe)
 import Data.Char (toLower)
 
 -- aeson
-import qualified Data.Aeson as A (ToJSON(..), FromJSON(..), genericParseJSON, defaultOptions, Options(..), withObject, withText, (.:), (.:?), object, (.=), Key, Value, camelTo2)
+import qualified Data.Aeson as A (ToJSON(..), FromJSON(..), genericParseJSON, defaultOptions, Options(..), withObject, withText, (.:), (.:?), object, (.=), Key, Value(..), camelTo2)
 -- bytestring
 import qualified Data.ByteString as BS (ByteString)
 import qualified Data.ByteString.Char8 as BS8 (pack, unpack)
@@ -164,6 +165,7 @@ msAzureReqConfig apiplane uriRest (AccessToken ttok) = (url, os)
 
 -- * common types
 
+-- | Displays the short name, e.g. "westeu"
 showLocation :: Location -> Text
 showLocation = pack . show
 
@@ -176,6 +178,15 @@ instance Show Location where
   show = \case
     LNorthEU -> "northeu"
     LWestEU -> "westeu"
+-- | Renders the full name via 'locationDisplayName'
+instance A.ToJSON Location where
+  toJSON = A.String . locationDisplayName
+
+-- | Displays the full name, e.g. "West Europe"
+locationDisplayName :: Location -> Text
+locationDisplayName = \case
+  LNorthEU -> "North Europe"
+  LWestEU -> "West Europe"
 
 -- | a collection of items with key @value@
 --
