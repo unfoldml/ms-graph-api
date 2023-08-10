@@ -372,6 +372,27 @@ fetchUpdateTokenACG ts idpApp mgr etoken = ExceptT $ do
           Left es -> pure $ Left (OASEJWTException es) -- id token validation failed
     Left es -> pure $ Left (OASEOAuth2Errors es)
 
+
+-- -- -- for Bot Framework auth etc
+-- fetchUpdateToken' :: MonadIO m =>
+--                      Tokens UserSub OAuth2Token
+--                   -> IdpApplication 'ClientCredentials i
+--                   -> Manager
+--                   -> ExceptT OAuthSessionError m OAuth2Token
+-- fetchUpdateToken' ts idpApp mgr = ExceptT $ do
+--   tokenResp <- runExceptT $ conduitTokenRequest idpApp mgr -- OAuth2 token
+--   case tokenResp of
+--     Right oat -> case idToken oat of
+--       Nothing -> pure $ Left OASENoOpenID
+--       Just idt -> do
+--         idtClaimsE <- decValidIdToken idt -- decode and validate ID token
+--         case idtClaimsE of
+--           Right uid -> do
+--             _ <- refreshLoopACG ts idpApp mgr uid oat -- fork a thread and start refresh loop for this user
+--             pure $ Right oat
+
+
+
 -- | 2) fork a thread and start token refresh loop for user @uid@
 refreshLoopACG :: (MonadIO m, Ord uid, HasRefreshTokenRequest a) =>
                     Tokens uid OAuth2Token
