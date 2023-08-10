@@ -8,6 +8,10 @@ and this project adheres to the
 
 ## Unreleased
 
+## 0.6.0.0
+
+MSAzureAPI.BotService
+
 ## 0.5.0.0
 
 ToJSON instance of Location renders the full name e.g. "West Europe"
@@ -17,7 +21,6 @@ MSAzureAPI.ServiceBus
 add 'http-client' as an explicit dependency
 
 * breaking changes
-
 Fixed definition of 'put' to use the correct HTTP verb
 Add constructor to 'APIPlane' to reflect service bus usage
 
