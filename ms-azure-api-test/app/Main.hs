@@ -8,6 +8,9 @@ module Main (main) where
 import Control.Monad.IO.Class (MonadIO(..))
 -- aeson
 import Data.Aeson (eitherDecode)
+import Data.Aeson.Encode.Pretty (encodePretty)
+-- bytestring
+import qualified Data.ByteString.Lazy.Char8 as LBS8 (pack, unpack, putStrLn)
 -- dotenv-micro
 import DotEnv.Micro (loadDotEnv)
 -- hoauth2
@@ -46,13 +49,13 @@ server :: MonadIO m => m ()
 server = do
   loadDotEnv Nothing
   ip <- idpApp
-  withTLS $ \httpcfg mgr -> do
+  withTLS $ \hc mgr -> do
     tv <- tokenUpdateLoop ip mgr
     let
       runR r = runReaderT r tv
     scottyT 3000 runR $ do
       middleware logStdoutDev
-      pong tv httpcfg "/pong"
+      pong tv hc "/pong"
 
 
 pong :: (MonadIO m) =>
@@ -64,9 +67,11 @@ pong tv hc pth = post pth $ do
   case m of
     Nothing -> raise "readToken: found Nothing"
     Just atok -> do
-      ei <- run hc $ sendReply acti "It worked!" [] atok
+      ei <- run hc $ sendReply acti "It works!" [] atok
       case ei of
-        Right _ -> status status200
+        Right _ -> do
+          liftIO $ LBS8.putStrLn $ encodePretty acti
+          status status200
         Left e -> raise $ TL.pack (show e)
 
 

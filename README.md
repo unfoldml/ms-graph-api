@@ -15,7 +15,8 @@ We provide separate libraries for authentication (`ms-auth`), Graph (`ms-graph-a
 
 ## Examples
 
-* OAuth flow : see `ms-graph-api-test/app/Main.hs` 
+* OAuth flow : see `ms-graph-api-test/app/Main.hs`
+* Azure bot service : see `ms-azure-api-test/app/Main.hs`
 
 ## Status
 

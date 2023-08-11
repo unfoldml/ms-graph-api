@@ -1,5 +1,5 @@
 name:                ms-azure-api
-version:             0.6.0.0
+version:             0.6.0.1
 synopsis:            Microsoft Azure API
 description:         Bindings to the Microsoft Azure API
 homepage:            https://github.com/unfoldml/ms-graph-api

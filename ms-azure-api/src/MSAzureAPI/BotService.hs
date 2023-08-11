@@ -1,3 +1,4 @@
+{-# options_ghc -Wno-unused-imports #-}
 -- | Azure Bot Framework
 --
 -- https://learn.microsoft.com/en-us/azure/bot-service/rest-api/bot-framework-rest-connector-quickstart?view=azure-bot-service-4.0
@@ -15,7 +16,7 @@ module MSAzureAPI.BotService (
   , TextBlock(..)
   , ColumnSet(..)
   , Column(..)
-                             ) where
+  ) where
 
 import Data.Char (toLower)
 import GHC.Exts (IsString(..))
@@ -31,7 +32,7 @@ import Network.HTTP.Req (HttpException, runReq, HttpConfig, defaultHttpConfig, R
 -- text
 import Data.Text (Text, pack, unpack)
 
-import MSAzureAPI.Internal.Common (run, APIPlane(..), Location(..), locationDisplayName, (==:), get, getBs, post, postRaw, getLbs, put, tryReq, aesonOptions)
+import MSAzureAPI.Internal.Common (run, APIPlane(..), Location(..), locationDisplayName, (==:), get, getBs, post, postRaw, getLbs, put, tryReq, aesonOptions, say)
 
 
 -- * Send and receive messages with the Bot Framework : https://learn.microsoft.com/en-us/azure/bot-service/rest-api/bot-framework-rest-connector-send-and-receive-messages?view=azure-bot-service-4.0
@@ -45,7 +46,8 @@ sendReply :: Activity -- ^ data from the user
           -> AccessToken -> Req ()
 sendReply acti txt atts atok =
   case aReplyToId acti of
-    Nothing -> pure ()
+    Nothing -> do
+      say "sendReply: replyToId is null"
     Just aid -> postRaw urib ["v3", "conversations", cid, "activities", aid] mempty actO atok
       where
         urib = aServiceUrl acti
@@ -68,9 +70,9 @@ mkReplyActivity actI = Activity ATMessage Nothing Nothing conO froO recO surl re
 --
 -- https://learn.microsoft.com/en-us/azure/bot-service/rest-api/bot-framework-rest-connector-send-and-receive-messages?view=azure-bot-service-4.0#send-a-non-reply-message
 sendMessage :: (A.FromJSON b) =>
-               Text
-            -> Text
-            -> Activity
+               Text -- ^ base URI, taken from the @serviceUrl@ property in the incoming 'Activity' object
+            -> Text -- ^ conversation ID
+            -> Activity -- ^ message payload
             -> AccessToken -> Req b
 sendMessage urib cid =
   postRaw urib ["v3", "conversations", cid, "activities"] mempty
@@ -83,12 +85,12 @@ data Activity = Activity {
   , aId :: Maybe Text
   , aChannelId :: Maybe Text
   , aConversation :: ConversationAccount
-  , aFrom :: ChannelAccount
-  , aRecipient :: ChannelAccount
+  , aFrom :: ChannelAccount -- ^ sender
+  , aRecipient :: ChannelAccount -- ^ recipient
   , aServiceUrl :: Text -- ^ URL that specifies the channel's service endpoint. Set by the channel.
   , aReplyToId :: Maybe Text
-  , aText :: Text
-  , aAttachments :: [Attachment]
+  , aText :: Text -- ^ message text
+  , aAttachments :: [Attachment] -- ^ message attachments
                          } deriving (Show, Generic)
 instance A.FromJSON Activity where
   parseJSON = A.genericParseJSON (aesonOptions "a")

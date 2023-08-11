@@ -34,6 +34,8 @@ module MSAzureAPI.Internal.Common (
   , locationDisplayName
   -- ** JSON co\/dec
   , aesonOptions
+  -- ** misc
+  , say
   ) where
 
 import Control.Monad.IO.Class (MonadIO(..))
@@ -293,3 +295,6 @@ recordName pf str = case uncons $ dropPrefix pf str of
 -- > dropPrefix "Mr. " "Dr. Men" == "Dr. Men"
 dropPrefix :: Eq a => [a] -> [a] -> [a]
 dropPrefix a b = fromMaybe b $ stripPrefix a b
+
+say :: MonadIO m => String -> m ()
+say = liftIO . putStrLn
