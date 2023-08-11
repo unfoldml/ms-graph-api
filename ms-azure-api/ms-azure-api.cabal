@@ -54,6 +54,7 @@ library
                        DeriveGeneric
                        DeriveFunctor
                        DerivingStrategies
+                       GeneralizedNewtypeDeriving
                        LambdaCase
                        DataKinds
 

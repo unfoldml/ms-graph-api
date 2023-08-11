@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# language QuasiQuotes #-}
 {-# options_ghc -Wno-unused-imports #-}
 -- | Common functions for the MS Azure API
 --
@@ -12,6 +13,7 @@ module MSAzureAPI.Internal.Common (
   , getLbs
   -- ** POST
   , post
+  , postRaw
   , postSBMessage
   -- ** DELETE
   , delete
@@ -39,7 +41,7 @@ import Data.Proxy (Proxy)
 import GHC.Generics (Generic(..))
 
 import Data.List (sort, sortBy, stripPrefix, uncons)
-import Data.Maybe (listToMaybe, fromMaybe)
+import Data.Maybe (listToMaybe, fromJust, fromMaybe)
 -- import Data.Ord (comparing)
 import Data.Char (toLower)
 
@@ -58,9 +60,9 @@ import Network.HTTP.Client.TLS (newTlsManager)
 import Network.OAuth.OAuth2 (OAuth2Token(..))
 import Network.OAuth.OAuth2.Internal (AccessToken(..), ExchangeToken(..), RefreshToken(..), OAuth2Error, IdToken(..))
 -- modern-uri
--- import Text.URI (URI, mkURI)
+import Text.URI (URI, mkURI)
 -- req
-import Network.HTTP.Req (Req, runReq, HttpBody(..), HttpConfig(..), HttpException(..), defaultHttpConfig, req, Option, (=:), GET(..), POST(..), PUT(..), DELETE(..), Url, Scheme(..), useHttpsURI, https, (/:), ReqBodyJson(..), NoReqBody(..), oAuth2Bearer, HttpResponse(..), jsonResponse, JsonResponse, lbsResponse, LbsResponse, bsResponse, BsResponse, responseBody)
+import Network.HTTP.Req (Req, runReq, HttpBody(..), HttpConfig(..), HttpException(..), defaultHttpConfig, req, Option, (=:), GET(..), POST(..), PUT(..), DELETE(..), Url, Scheme(..), urlQ, useHttpsURI, https, (/:), ReqBodyJson(..), NoReqBody(..), oAuth2Bearer, HttpResponse(..), jsonResponse, JsonResponse, lbsResponse, LbsResponse, bsResponse, BsResponse, responseBody)
 -- text
 import Data.Text (Text, pack, unpack)
 -- unliftio
@@ -120,7 +122,6 @@ data APIPlane = APManagement -- ^ Management plane (@management.azure.com@ endpo
               | APData Text -- ^ Data plane e.g. FileREST API
               | APServiceBus Text -- ^ Data plane for Service Bus. The parameter is the service name
 
-
 -- | @PUT@
 put :: (A.FromJSON b, A.ToJSON a) =>
        APIPlane
@@ -151,6 +152,26 @@ post apiplane paths params bdy tok = responseBody <$> req POST url (ReqBodyJson 
   where
     opts = auth <> params
     (url, auth) = msAzureReqConfig apiplane paths tok
+
+-- | @POST@ to a URL
+--
+-- useful when the base URL is dynamic e.g. comes from an external service
+postRaw :: (A.FromJSON b, A.ToJSON a) =>
+           Text -- ^ base URL (can contain path and parameters too)
+        -> [Text] -- ^ additional URI path segments
+        -> Option 'Https
+        -> a -> AccessToken -> Req b
+postRaw uraw paths params bdy atok = do
+  uriBase <- mkURI uraw
+  let
+    auth = bearerAuth atok
+    (u, uparams) = fromJust (useHttpsURI uriBase)
+    url = u //: paths
+    opts = auth <> params <> uparams -- NB identical keys are not overwritten
+  responseBody <$> req POST url (ReqBodyJson bdy) jsonResponse opts
+
+
+
 
 -- | Post a message or batch thereof to the Service Bus
 --
@@ -183,15 +204,23 @@ msAzureReqConfig :: APIPlane
                  -> [Text] -- ^ URI path segments
                  -> AccessToken
                  -> (Url 'Https, Option 'Https)
-msAzureReqConfig apiplane uriRest (AccessToken ttok) = (url, os)
+msAzureReqConfig apiplane uriRest atok = (url, os)
+  where
+    url = apiPlaneBaseURL apiplane uriRest
+    os = bearerAuth atok
+
+apiPlaneBaseURL :: APIPlane
+                -> [Text] -- ^ URI path segments
+                -> Url 'Https
+apiPlaneBaseURL apiplane uriRest = (https urlBase) //: uriRest
   where
     urlBase = case apiplane of
       APManagement -> "management.azure.com"
       APData ub -> ub
       APServiceBus sn -> sn <> ".servicebus.windows.net"
-    url = (https urlBase) //: uriRest
-    os = oAuth2Bearer $ BS8.pack (unpack ttok)
 
+bearerAuth :: AccessToken -> Option 'Https
+bearerAuth (AccessToken ttok) = oAuth2Bearer $ BS8.pack (unpack ttok)
 
 
 (//:) :: Url scheme -> [Text] -> Url scheme

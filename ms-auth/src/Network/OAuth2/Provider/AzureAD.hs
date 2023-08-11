@@ -7,9 +7,9 @@
 {-# options_ghc -Wno-ambiguous-fields #-}
 -- | Settings for using Azure Active Directory as OAuth identity provider
 --
--- Both @Auth Code Grant@ (i.e. with browser client interaction) and @App-only@ (i.e. Client Credentials) authentication flows are supported. The former is useful when a user needs to login and delegate some permissions to the application (i.e. accessing personal data), whereas the second is for server processes and automation accounts.
+-- Both @Auth Code Grant@ (i.e. with browser client interaction) and @Client Credentials Grant@ authentication flows are supported. The former is useful when a user needs to login and delegate some permissions to the application (i.e. accessing personal data), whereas the second is for server processes and automation accounts.
 --
--- Azure Bot Framework is supported since v 0.
+-- Azure Bot Framework is supported since v 0.4
 module Network.OAuth2.Provider.AzureAD (
     AzureAD
     , AzureBotFramework
@@ -17,10 +17,10 @@ module Network.OAuth2.Provider.AzureAD (
     , envClientId
     , envClientSecret
     , envTenantId
-    -- * App flow
+    -- * Client Credentials auth flow
     , azureADApp
-    , azureBotFrameworkOAuthADApp
-    -- * Delegated permissions OAuth2 flow
+    , azureBotFrameworkADApp
+    -- * Auth Code Grant auth flow
     , OAuthCfg(..)
     , AzureADUser
     , azureOAuthADApp
@@ -79,9 +79,9 @@ instance Show AzureADException where
   show = \case
     AADNoEnvVar e -> unwords ["Env var", e, "not found"]
 
--- * App-only flow
+-- * Client Credentials Grant flow
 
--- | Azure OAuth application (i.e. with user consent screen)
+-- | Azure OAuth application
 --
 -- NB : scope @offline_access@ is ALWAYS requested
 --
@@ -117,8 +117,42 @@ defaultAzureADApp =
     , idp = defaultAzureADIdp
     }
 
+-- | Initialize an Client Credentials token exchange application for the Bot Framework
+--
+--
+-- Throws 'AzureADException' if @AZURE_CLIENT_ID@ and/or @AZURE_CLIENT_SECRET@ credentials are not found in the environment
+azureBotFrameworkADApp :: MonadIO m =>
+                          TL.Text -- ^ app name
+                       -> m (IdpApplication 'ClientCredentials AzureBotFramework)
+azureBotFrameworkADApp appname = do
+    clid <- envClientId
+    sec <- envClientSecret
+    pure $ ClientCredentialsIDPAppConfig {idpAppClientId = clid,
+                                          idpAppClientSecret = sec,
+                                          idpAppName = appname,
+                                          idpAppScope = Set.fromList ["https://api.botframework.com/.default"],
+                                          idpAppTokenRequestExtraParams = mempty,
+                                          idp = defaultAzureBotFrameworkIdp
+                                         }
 
--- * Delegated permissions flow
+
+data AzureBotFramework = AzureBotFramework deriving (Eq, Show)
+
+defaultAzureBotFrameworkIdp :: Idp AzureBotFramework
+defaultAzureBotFrameworkIdp = Idp {
+  idpFetchUserInfo = authGetJSON @(IdpUserInfo AzureBotFramework)
+  , idpTokenEndpoint = [uri|https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token|]
+  , idpUserInfoEndpoint = error $ unwords ["Azure Bot Framework Idp:", "OAuth user info endpoint is not defined"]
+  , idpAuthorizeEndpoint = error $ unwords ["Azure Bot Framework Idp:", "OAuth authorize endpoint is not defined"]
+                                  }
+
+
+
+
+
+
+
+-- * Authorization Code Grant flow
 
 type instance IdpUserInfo AzureAD = AzureADUser
 
@@ -182,30 +216,7 @@ defaultAzureADIdp =
     , idpTokenEndpoint = [uri|https://login.microsoftonline.com/common/oauth2/v2.0/token|]
     }
 
--- | 
-azureBotFrameworkOAuthADApp :: ClientId
-                            -> ClientSecret
-                            -> TL.Text -- ^ app name
-                            -> IdpApplication 'ClientCredentials AzureBotFramework
-azureBotFrameworkOAuthADApp clid sec appname = ClientCredentialsIDPAppConfig {
-  idpAppClientId = clid,
-    idpAppClientSecret = sec,
-    idpAppName = appname,
-    idpAppScope = Set.fromList ["https://api.botframework.com/.default"],
-    idpAppTokenRequestExtraParams = mempty,
-    idp = defaultAzureBotFrameworkIdp
-                                                                   }
 
-
-data AzureBotFramework = AzureBotFramework
-
-defaultAzureBotFrameworkIdp :: Idp AzureBotFramework
-defaultAzureBotFrameworkIdp = Idp {
-  idpFetchUserInfo = authGetJSON @(IdpUserInfo AzureBotFramework)
-  , idpTokenEndpoint = [uri|https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token|]
-  , idpUserInfoEndpoint = error $ unwords ["Azure Bot Framework Idp:", "OAuth user info endpoint is not defined"]
-  , idpAuthorizeEndpoint = error $ unwords ["Azure Bot Framework Idp:", "OAuth authorize endpoint is not defined"]
-                                  }
 
 -- | https://learn.microsoft.com/en-us/azure/active-directory/develop/userinfo
 data AzureADUser = AzureADUser

@@ -7,21 +7,22 @@
 --
 -- The library supports the following authentication scenarios :
 --
--- * [Client Credentials](https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-client-creds-grant-flow) (server/server or automation accounts)
+-- * [Client Credentials](https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-client-creds-grant-flow) (server/server or automation accounts), see also https://oauth.net/2/grant-types/client-credentials/
 --
--- * [Authorization Code](https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow) (with human users being prompted to delegate some access rights to the app)
+-- * [Authorization Code](https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow) (with human users being prompted to delegate some access rights to the app), see also https://oauth.net/2/grant-types/authorization-code/
 --
 -- and provides functions to keep tokens up to date in the background.
 module Network.OAuth2.Session (
-  -- * A App-only flow (server-to-server)
+  -- * A Client Credentials Grant (i.e. server-to-server)
   Token
-  , newNoToken
+  -- , newNoToken
+  , tokenUpdateLoop
   , expireToken
   , readToken
-  , fetchUpdateToken
+  -- , fetchUpdateToken
   -- ** Default Azure Credential
   , defaultAzureCredential
-  -- * B Auth code grant flow (interactive)
+  -- * B Auth Code Grant (i.e. with user auth in the loop)
   -- ** OAuth endpoints
   , loginEndpoint
   , replyEndpoint
@@ -145,7 +146,7 @@ withAADUser ts loginURI act = aadHeaderIdToken $ \usub -> do
 
 
 
--- * App-only authorization scenarios (i.e via automation accounts. Human users not involved)
+-- * App-only authorization scenarios, called "CLient credentials grant" https://oauth.net/2/grant-types/client-credentials/ (i.e via automation accounts. Human users not involved)
 
 
 
@@ -161,6 +162,26 @@ expireToken ts = atomically $ modifyTVar ts (const Nothing)
 -- | Read the current value of the token
 readToken :: MonadIO m => Token t -> m (Maybe t)
 readToken ts = atomically $ readTVar ts
+
+updateToken :: (MonadIO m) =>
+               Token OAuth2Token -> OAuth2Token -> m NominalDiffTime
+updateToken ts oat = do
+  let
+    ein = fromIntegral $ fromMaybe 3600 (expiresIn oat) -- expires in [sec]
+  atomically $ do
+    writeTVar ts (Just oat)
+  pure ein
+
+-- | Forks a thread and keeps the OAuth token up to date inside a TVar
+tokenUpdateLoop :: MonadIO m =>
+                   IdpApplication 'ClientCredentials AzureAD -- ^ client credentials grant only
+                -> Manager
+                -> m (Token OAuth2Token)
+tokenUpdateLoop idp mgr = do
+  t <- newNoToken
+  fetchUpdateToken idp t mgr
+  pure t
+
 
 fetchUpdateTokenWith :: MonadIO m =>
                         (t1 -> t2 -> ExceptT [String] IO OAuth2Token)
@@ -207,15 +228,17 @@ tokenRequestNoExchange :: (MonadIO m) =>
                        -> ExceptT [String] m OAuth2Token
 tokenRequestNoExchange ip mgr = withExceptT (pure . show) (conduitTokenRequest ip mgr)
 
--- | Fetch an OAuth token and keep it updated. Should be called as a first thing in the app
+-- | Token refresh loop for Client Credentials Grant scenarios (Bot Framework auth etc)
+--
+-- Fetch an OAuth token and keep it updated. Should be called as a first thing in the app
 --
 -- NB : forks a thread in the background
 --
 -- https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-client-creds-grant-flow
 fetchUpdateToken :: MonadIO m =>
                     IdpApplication 'ClientCredentials AzureAD
-                 -> Token OAuth2Token -- ^ token TVar
-                 -> Manager
+                 -> Token OAuth2Token -- ^ the app manages a single token at a time
+                 -> Manager -- ^ HTTP connection manager
                  -> m ()
 fetchUpdateToken idpApp ts mgr = liftIO $ void $ forkFinally loop cleanup
   where
@@ -233,14 +256,7 @@ fetchUpdateToken idpApp ts mgr = liftIO $ void $ forkFinally loop cleanup
           threadDelay (dtSecs * 1000000) -- pause thread
           loop
 
-updateToken :: (MonadIO m) =>
-               Token OAuth2Token -> OAuth2Token -> m NominalDiffTime
-updateToken ts oat = do
-  let
-    ein = fromIntegral $ fromMaybe 3600 (expiresIn oat) -- expires in [sec]
-  atomically $ do
-    writeTVar ts (Just oat)
-  pure ein
+
 
 
 
@@ -350,14 +366,16 @@ replyH idpApp ts mgr = do
 -- bslToText = T.pack . BSL.unpack
 
 
--- | 1) the ExchangeToken arrives with the redirect once the user has approved the scopes in the browser
+-- | Token refresh loop for Auth Code Grant scenarios
+--
+-- 1) the ExchangeToken arrives with the redirect once the user has approved the scopes in the browser
 -- https://learn.microsoft.com/en-us/graph/auth-v2-user?view=graph-rest-1.0&tabs=http#authorization-response
 fetchUpdateTokenACG :: MonadIO m =>
-                         Tokens UserSub OAuth2Token
-                      -> IdpApplication 'AuthorizationCode AzureAD
-                      -> Manager
-                      -> ExchangeToken -- ^ also called 'code'. Expires in 10 minutes
-                      -> ExceptT OAuthSessionError m OAuth2Token
+                       Tokens UserSub OAuth2Token -- ^ the app manages one token per user
+                    -> IdpApplication 'AuthorizationCode AzureAD
+                    -> Manager -- ^ HTTP connection manager
+                    -> ExchangeToken -- ^ also called 'code'. Expires in 10 minutes
+                    -> ExceptT OAuthSessionError m OAuth2Token
 fetchUpdateTokenACG ts idpApp mgr etoken = ExceptT $ do
   tokenResp <- runExceptT $ conduitTokenRequest idpApp mgr etoken -- OAuth2 token
   case tokenResp of
@@ -373,34 +391,16 @@ fetchUpdateTokenACG ts idpApp mgr etoken = ExceptT $ do
     Left es -> pure $ Left (OASEOAuth2Errors es)
 
 
--- -- -- for Bot Framework auth etc
--- fetchUpdateToken' :: MonadIO m =>
---                      Tokens UserSub OAuth2Token
---                   -> IdpApplication 'ClientCredentials i
---                   -> Manager
---                   -> ExceptT OAuthSessionError m OAuth2Token
--- fetchUpdateToken' ts idpApp mgr = ExceptT $ do
---   tokenResp <- runExceptT $ conduitTokenRequest idpApp mgr -- OAuth2 token
---   case tokenResp of
---     Right oat -> case idToken oat of
---       Nothing -> pure $ Left OASENoOpenID
---       Just idt -> do
---         idtClaimsE <- decValidIdToken idt -- decode and validate ID token
---         case idtClaimsE of
---           Right uid -> do
---             _ <- refreshLoopACG ts idpApp mgr uid oat -- fork a thread and start refresh loop for this user
---             pure $ Right oat
-
-
-
 -- | 2) fork a thread and start token refresh loop for user @uid@
+--
+-- ACG stands for "authorization code grant" flow, i.e. the user consent is in the auth loop.
 refreshLoopACG :: (MonadIO m, Ord uid, HasRefreshTokenRequest a) =>
-                    Tokens uid OAuth2Token
-                 -> IdpApplication a i
-                 -> Manager
-                 -> uid -- ^ user ID
-                 -> OAuth2Token
-                 -> m ThreadId
+                  Tokens uid OAuth2Token
+               -> IdpApplication a i
+               -> Manager
+               -> uid -- ^ user ID
+               -> OAuth2Token
+               -> m ThreadId
 refreshLoopACG ts idpApp mgr uid oaToken = liftIO $ forkFinally (act oaToken) cleanup
   where
     cleanup = \case

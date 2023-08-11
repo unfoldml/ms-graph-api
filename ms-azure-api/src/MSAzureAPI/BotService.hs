@@ -1,9 +1,28 @@
-module MSAzureAPI.BotService where
+-- | Azure Bot Framework
+--
+-- https://learn.microsoft.com/en-us/azure/bot-service/rest-api/bot-framework-rest-connector-quickstart?view=azure-bot-service-4.0
+module MSAzureAPI.BotService (
+  sendMessage
+  , sendReply
+  -- * Types
+  , Activity(..)
+  , Attachment(..)
+  -- ** Adaptive Card
+  , AdaptiveCard(..)
+  , ACElement(..)
+  -- *** adaptive card elements
+  , Image(..)
+  , TextBlock(..)
+  , ColumnSet(..)
+  , Column(..)
+                             ) where
 
+import Data.Char (toLower)
+import GHC.Exts (IsString(..))
 import GHC.Generics (Generic(..))
 
 -- aeson
-import qualified Data.Aeson as A (ToJSON(..), genericToJSON, object, (.=), ToJSONKey(..), FromJSON(..), genericParseJSON, withObject, withText)
+import qualified Data.Aeson as A (ToJSON(..), genericToJSON, object, (.=), encode, ToJSONKey(..), FromJSON(..), genericParseJSON, withObject, withText, Value(..))
 -- hoauth2
 import Network.OAuth.OAuth2.Internal (AccessToken(..))
 
@@ -12,19 +31,62 @@ import Network.HTTP.Req (HttpException, runReq, HttpConfig, defaultHttpConfig, R
 -- text
 import Data.Text (Text, pack, unpack)
 
-import MSAzureAPI.Internal.Common (run, APIPlane(..), Location(..), locationDisplayName, (==:), get, getBs, post, postSBMessage, getLbs, put, tryReq, aesonOptions)
+import MSAzureAPI.Internal.Common (run, APIPlane(..), Location(..), locationDisplayName, (==:), get, getBs, post, postRaw, getLbs, put, tryReq, aesonOptions)
+
+
+-- * Send and receive messages with the Bot Framework : https://learn.microsoft.com/en-us/azure/bot-service/rest-api/bot-framework-rest-connector-send-and-receive-messages?view=azure-bot-service-4.0
+
+-- | Send a reply to a user message
+--
+-- https://learn.microsoft.com/en-us/azure/bot-service/rest-api/bot-framework-rest-connector-send-and-receive-messages?view=azure-bot-service-4.0#create-a-reply
+sendReply :: Activity -- ^ data from the user
+          -> Text -- ^ reply text
+          -> [Attachment] -- ^ reply attachments
+          -> AccessToken -> Req ()
+sendReply acti txt atts atok =
+  case aReplyToId acti of
+    Nothing -> pure ()
+    Just aid -> postRaw urib ["v3", "conversations", cid, "activities", aid] mempty actO atok
+      where
+        urib = aServiceUrl acti
+        cid = coaId $ aConversation acti
+        actO = mkReplyActivity acti txt atts
+
+mkReplyActivity :: Activity -- ^ coming from the user
+                -> Text -- ^ reply text
+                -> [Attachment] -- ^ reply attachments
+                -> Activity
+mkReplyActivity actI = Activity ATMessage Nothing Nothing conO froO recO surl replid
+  where
+    conO = aConversation actI
+    froO = aRecipient actI
+    recO = aFrom actI
+    surl = aServiceUrl actI
+    replid = aReplyToId actI
+
+-- | Send a standalone message
+--
+-- https://learn.microsoft.com/en-us/azure/bot-service/rest-api/bot-framework-rest-connector-send-and-receive-messages?view=azure-bot-service-4.0#send-a-non-reply-message
+sendMessage :: (A.FromJSON b) =>
+               Text
+            -> Text
+            -> Activity
+            -> AccessToken -> Req b
+sendMessage urib cid =
+  postRaw urib ["v3", "conversations", cid, "activities"] mempty
 
 -- | Activity object. Defines a message that is exchanged between bot and user.
 --
 -- https://learn.microsoft.com/en-us/azure/bot-service/rest-api/bot-framework-rest-connector-api-reference?view=azure-bot-service-4.0#activity-object
 data Activity = Activity {
   aType :: ActivityType
-  , aId :: Text
-  , aChannelId :: Text
+  , aId :: Maybe Text
+  , aChannelId :: Maybe Text
   , aConversation :: ConversationAccount
   , aFrom :: ChannelAccount
   , aRecipient :: ChannelAccount
   , aServiceUrl :: Text -- ^ URL that specifies the channel's service endpoint. Set by the channel.
+  , aReplyToId :: Maybe Text
   , aText :: Text
   , aAttachments :: [Attachment]
                          } deriving (Show, Generic)
@@ -77,8 +139,8 @@ data Image = Image {
   imgUrl :: Text } deriving (Show, Generic)
 instance A.ToJSON Image where
   toJSON = A.genericToJSON (aesonOptions "img")
-data TextBlock = TextBlock {
-  tbText :: Text } deriving (Show, Generic)
+newtype TextBlock = TextBlock {
+  tbText :: Text } deriving (Show, Generic) deriving newtype (IsString)
 instance A.ToJSON TextBlock where
   toJSON = A.genericToJSON (aesonOptions "tb")
 data ColumnSet = ColumnSet {
@@ -152,6 +214,7 @@ instance A.FromJSON ActivityType where
     "handoff" -> pure ATHandoff
     errstr -> fail $ unwords [unpack errstr, "not a valid ActivityType"]
 instance A.ToJSON ActivityType where
-  toJSON = \case
-    ATMessage -> "message"
-    -- _ -> fail "unimplemented"
+  toJSON v = A.String $ (pack . headLower . drop 2 . show) v
+    where
+      headLower (x:xs) = toLower x : xs
+      headLower [] = []

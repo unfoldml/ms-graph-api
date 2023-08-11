@@ -1,14 +1,12 @@
 -- | Functions for implementing Azure AD-based authentication
 --
--- Both @Auth Code Grant@ (i.e. with browser client interaction) and @App-only@ (i.e. Client Credentials) authentication flows are supported. The former is useful when a user needs to login and delegate some permissions to the application (i.e. accessing personal data), whereas the second is for server processes and automation accounts.
+-- Both @Auth Code Grant@ (i.e. with a user involved in the autorization loop) and @Client Credentials Grant@ (i.e. app only) authentication flows are supported. The former is useful when a user needs to login and delegate some permissions to the application (i.e. accessing personal data), whereas the second is for server processes and automation accounts.
 module MSAuth (
-  applyDotEnv
-  -- * A App-only flow (server-to-server)
-  , Token
-  , newNoToken
+  -- * A Client Credentials flow (server-to-server)
+  Token
+  , tokenUpdateLoop
   , expireToken
   , readToken
-  , fetchUpdateToken
   -- ** Default Azure Credential
   , defaultAzureCredential
   -- * B Auth code grant flow (interactive)
@@ -27,7 +25,6 @@ module MSAuth (
   , withAADUser
   , Scotty
   , Action
-              ) where
+  ) where
 
 import Network.OAuth2.Session
-import DotEnv (applyDotEnv)

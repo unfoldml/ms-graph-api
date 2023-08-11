@@ -1,13 +1,15 @@
 module MSAzureAPI (
-    -- ** HTTP request helpers
+  -- * HTTP request helpers
   tryReq
-  -- ** Common types
+  -- * Common types
+  -- ** Collection
   , Collection
   , collectionValue
   , collectionNextLink
-  -- *** Location
+  -- ** Location
   , Location(..)
   , showLocation
-                  ) where
+  , locationDisplayName
+  ) where
 
 import MSAzureAPI.Internal.Common

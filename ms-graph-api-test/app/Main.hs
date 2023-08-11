@@ -11,6 +11,8 @@ import Data.Maybe (fromMaybe)
 import qualified Data.Aeson.Encode.Pretty as A (encodePretty)
 -- bytestring
 import qualified Data.ByteString.Lazy.Char8 as LBS (putStrLn, pack)
+-- dotenv-micro
+import DotEnv.Micro (loadDotEnv)
 -- hoauth2
 import Network.OAuth.OAuth2 (OAuth2Token(..))
 import Network.OAuth2.Experiment (IdpApplication, GrantTypeFlow(..))
@@ -41,7 +43,7 @@ import qualified MSGraphAPI.Files.DriveItem as MSDI (listRootChildrenMe)
 import qualified MSGraphAPI.Users.Group as MSGU (Group(..), listMeJoinedTeams, listGroupsDriveItems)
 import qualified MSGraphAPI.Users.User as MSG (getMe, User(..))
 import Network.OAuth2.Provider.AzureAD (OAuthCfg(..), azureOAuthADApp, AzureAD)
-import MSAuth (applyDotEnv, Tokens, newTokens, tokensToList, withAADUser, loginEndpoint, replyEndpoint, UserSub, Scotty, Action)
+import MSAuth (Tokens, newTokens, tokensToList, withAADUser, loginEndpoint, replyEndpoint, UserSub, Scotty, Action)
 
 
 main :: IO ()
@@ -50,7 +52,7 @@ main = server
 server :: MonadIO m => m ()
 server = do
   ts <- newTokens
-  applyDotEnv (Just ".env")
+  loadDotEnv Nothing
   ip <- idpApp
   MSG.withTLS $ \hc mgr -> do
     let
