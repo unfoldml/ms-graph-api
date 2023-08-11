@@ -12,7 +12,6 @@
 -- Azure Bot Framework is supported since v 0.4
 module Network.OAuth2.Provider.AzureAD (
     AzureAD
-    , AzureBotFramework
     -- * Environment variables
     , envClientId
     , envClientSecret
@@ -123,7 +122,7 @@ defaultAzureADApp =
 -- Throws 'AzureADException' if @AZURE_CLIENT_ID@ and/or @AZURE_CLIENT_SECRET@ credentials are not found in the environment
 azureBotFrameworkADApp :: MonadIO m =>
                           TL.Text -- ^ app name
-                       -> m (IdpApplication 'ClientCredentials AzureBotFramework)
+                       -> m (IdpApplication 'ClientCredentials AzureAD)
 azureBotFrameworkADApp appname = do
     clid <- envClientId
     sec <- envClientSecret
@@ -136,11 +135,11 @@ azureBotFrameworkADApp appname = do
                                          }
 
 
-data AzureBotFramework = AzureBotFramework deriving (Eq, Show)
+-- data AzureBotFramework = AzureBotFramework deriving (Eq, Show)
 
-defaultAzureBotFrameworkIdp :: Idp AzureBotFramework
+defaultAzureBotFrameworkIdp :: Idp AzureAD
 defaultAzureBotFrameworkIdp = Idp {
-  idpFetchUserInfo = authGetJSON @(IdpUserInfo AzureBotFramework)
+  idpFetchUserInfo = authGetJSON @(IdpUserInfo AzureAD)
   , idpTokenEndpoint = [uri|https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token|]
   , idpUserInfoEndpoint = error $ unwords ["Azure Bot Framework Idp:", "OAuth user info endpoint is not defined"]
   , idpAuthorizeEndpoint = error $ unwords ["Azure Bot Framework Idp:", "OAuth authorize endpoint is not defined"]

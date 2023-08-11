@@ -95,16 +95,24 @@ instance A.FromJSON Activity where
 instance A.ToJSON Activity where
   toJSON = A.genericToJSON (aesonOptions "a")
 
--- | https://learn.microsoft.com/en-us/azure/bot-service/rest-api/bot-framework-rest-connector-api-reference?view=azure-bot-service-4.0#attachment-object
+-- | Message attachments
+--
+-- https://learn.microsoft.com/en-us/azure/bot-service/rest-api/bot-framework-rest-connector-api-reference?view=azure-bot-service-4.0#attachment-object
+--
+-- Attachments can be of many types but we currently only support adaptive cards
 data Attachment = Attachment {
   attContent :: AdaptiveCard
-  , attContentType :: Text
                              } deriving (Show, Generic)
 instance A.FromJSON Attachment where
   parseJSON = A.genericParseJSON (aesonOptions "att")
 instance A.ToJSON Attachment where
-  toJSON = A.genericToJSON (aesonOptions "att")
-
+  toJSON (Attachment ac) = A.object [
+    "contentType" A..= ("application/vnd.microsoft.card.adaptive" :: String)
+    , "content" A..= ac
+                                    ]
+-- | Adaptive Card API
+--
+-- https://adaptivecards.io/explorer/AdaptiveCard.html
 data AdaptiveCard = AdaptiveCard {
   acBody :: [ACElement] } deriving (Show, Generic)
 instance A.FromJSON AdaptiveCard where

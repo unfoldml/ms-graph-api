@@ -1,6 +1,8 @@
 module MSAzureAPI (
   -- * HTTP request helpers
   tryReq
+  , run
+  , withTLS
   -- * Common types
   -- ** Collection
   , Collection

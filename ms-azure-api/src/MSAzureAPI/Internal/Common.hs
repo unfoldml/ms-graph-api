@@ -53,6 +53,7 @@ import qualified Data.ByteString.Char8 as BS8 (pack, unpack)
 import qualified Data.ByteString.Lazy as LBS (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as LBS8 (pack, unpack, putStrLn)
 -- http-client
+import Network.HTTP.Client (Manager)
 import qualified Network.HTTP.Client as L (RequestBody(..))
 -- http-client-tls
 import Network.HTTP.Client.TLS (newTlsManager)
@@ -95,13 +96,13 @@ getBs apiplane paths params tok = responseBody <$> req GET url NoReqBody bsRespo
 
 -- | Create a new TLS manager, which should be reused throughout the program
 withTLS :: MonadIO m =>
-           (HttpConfig -> m b) -- ^ user program
+           (HttpConfig -> Manager -> m b) -- ^ user program
         -> m b
 withTLS act = do
   mgr <- newTlsManager
   let
     hc = defaultHttpConfig { httpConfigAltManager = Just mgr }
-  act hc
+  act hc mgr
 
 -- | Run a 'Req' computation
 run :: MonadIO m =>
