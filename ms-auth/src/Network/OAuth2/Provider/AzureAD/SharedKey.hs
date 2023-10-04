@@ -1,4 +1,5 @@
 {-# language OverloadedStrings #-}
+{-# language TupleSections #-}
 {-# options_ghc -Wno-unused-imports #-}
 module Network.OAuth2.Provider.AzureAD.SharedKey where
 
@@ -83,7 +84,7 @@ test0 = do
 createRequest :: ToSignLite
               -> String -- ^ storage account name
               -> String -- ^ fileshare name
-              -> BS.ByteString -- ^ key
+              -> BS.ByteString -- ^ shared key for the storage account
               -> IO Request
 createRequest tsl acct share k = do
   s <- signed tsl k
