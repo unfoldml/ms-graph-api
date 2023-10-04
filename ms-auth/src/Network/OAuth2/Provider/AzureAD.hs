@@ -41,7 +41,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 -- hoauth2
 import Network.OAuth.OAuth2 (ClientAuthenticationMethod(..), authGetJSON)
-import Network.OAuth2.Experiment (IdpApplication(..), Idp(..), IdpUserInfo, GrantTypeFlow(..), ClientId(..), ClientSecret(..), Scope, AuthorizeState)
+import Network.OAuth2.Internal.Types (IdpApplication(..), Idp(..), IdpUserInfo, GrantTypeFlow(..), ClientId(..), ClientSecret(..), Scope, AuthorizeState)
 -- text
 import qualified Data.Text as T (Text)
 import qualified Data.Text.Lazy as TL (Text, pack)

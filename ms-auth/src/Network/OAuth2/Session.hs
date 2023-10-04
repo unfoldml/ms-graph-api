@@ -62,7 +62,7 @@ import qualified Data.Map as M (Map, insert, lookup, alter, toList)
 -- import qualified Data.Heap as H (Heap, empty, null, size, insert, viewMin, deleteMin, Entry(..), )
 -- hoauth2
 import Network.OAuth.OAuth2 (OAuth2Token(..), AccessToken(..), ExchangeToken(..), RefreshToken(..), OAuth2Error(..), IdToken(..))
-import Network.OAuth2.Experiment (IdpUserInfo, conduitUserInfoRequest, mkAuthorizeRequest, conduitTokenRequest, conduitRefreshTokenRequest, HasRefreshTokenRequest(..), WithExchangeToken, IdpApplication(..), GrantTypeFlow(..))
+import Network.OAuth2.Internal.Types (IdpUserInfo, conduitUserInfoRequest, mkAuthorizeRequest, conduitTokenRequest, conduitRefreshTokenRequest, HasRefreshTokenRequest(..), WithExchangeToken, IdpApplication(..), GrantTypeFlow(..))
 import Network.OAuth.OAuth2.TokenRequest (Errors)
 -- http-client
 import Network.HTTP.Client (Manager, parseRequest, requestHeaders, httpLbs, responseBody, responseStatus)
@@ -272,18 +272,17 @@ managedIdentity :: Manager
                 -> String -- ^ Azure resource URI
                 -> ExceptT [String] IO OAuth2Token
 managedIdentity mgr clid resUri = ExceptT $ do
-  mih <- lookupEnv "IDENTITY_ENDPOINT"
-  mie <- lookupEnv "IDENTITY_HEADER"
-  case (,) <$> mih <*> mie of
-    Just (idEndpoint, ih) -> do
+  mie <- lookupEnv "IDENTITY_ENDPOINT"
+  mih <- lookupEnv "IDENTITY_HEADER"
+  case (,) <$> mie <*> mih of
+    Just (idEndpoint, idHeader) -> do
       let
         apiVer = "2019-08-01"
-        xIdentityHeader = ih
       r <- parseRequest $ mconcat [idEndpoint, "?", kvs [("resource", resUri), ("api-version", apiVer), ("client_id", clid)]]
       let
         r' = r {
           requestHeaders = [
-              ("X-IDENTITY-HEADER", BS.pack xIdentityHeader)
+              ("X-IDENTITY-HEADER", BS.pack idHeader)
                            ]
                }
       res <- httpLbs r' mgr
