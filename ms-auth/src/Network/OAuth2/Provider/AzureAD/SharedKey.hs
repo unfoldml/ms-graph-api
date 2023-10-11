@@ -62,13 +62,14 @@ ctzMq410TV3wS7upTBcunJTDLEJwMAZuFPfr0mrrA08=
 -}
 
 
-toSign :: ToSignLite -> IO (T.Text, Option scheme)
-toSign (ToSignLite v cty hs o pth) = do
+toSign :: ToSignLite -> String -> String -> IO (T.Text, Option scheme)
+toSign (ToSignLite v cty hs o pth) acct share = do
   xms@(_, datev) <- xMsDate
   let
     hs' = xms : hs
     dateHeader = header (BS.pack "x-ms-date") (BS.pack datev)
-    res = canonicalizedResource o pth
+    -- res = canonicalizedResource o pth
+    res = "/" <> T.pack acct <> "/" <> T.pack share <> "/" <> pth 
     appendNewline x = x <> "\n"
     str = mconcat (map appendNewline ([ v, "", cty, ""] <> canonicalizeHeaders hs') <> [res])
   print str
@@ -76,12 +77,14 @@ toSign (ToSignLite v cty hs o pth) = do
 
 
 
+
 signed :: ToSignLite
+       -> String
        -> String
        -> BS.ByteString -- ^ shared key (from Azure portal)
        -> IO (T.Text, Option scheme)
-signed (ToSignLite v ty hs owner pth) acct key = do
-  (t, dateHeader) <- toSign (ToSignLite v ty hs owner pth)
+signed (ToSignLite v ty hs owner pth) acct share key = do
+  (t, dateHeader) <- toSign (ToSignLite v ty hs owner pth) acct share
   case B64.decodeBase64 key of
     Left e -> error $ T.unpack e
     Right dkey -> do
@@ -94,13 +97,13 @@ signed (ToSignLite v ty hs owner pth) acct key = do
 test0' :: String -> IO BsResponse
 test0' k = do
   let
-    tsl = ToSignLite "GET" "text/plain" [] "BG-GOT" "/aior/README.md"
+    tsl = ToSignLite "GET" "text/plain; charset=UTF-8" [("x-ms-version", "2014-02-14")] "BG-GOT" "aior/README.md"
     acct = "weuflowsightsa"
     share = "irisity-april4-2023-delivery"
     resource = tslPath tsl
-  (s, dateHeader) <- first T.encodeUtf8 <$> signed tsl acct (BS.pack k)
+  (s, dateHeader) <- first T.encodeUtf8 <$> signed tsl acct share (BS.pack k)
   let
-    host = T.pack ("https://" <> acct <> ".file.core.windows.net/" <> share) <> resource
+    host = T.pack ("https://" <> acct <> ".file.core.windows.net/" <> share) <> "/" <> resource
     headers = sklAuthHeader s <>
               header "x-ms-version" "2014-02-14" <>
               header "Content-Type" "text/plain; charset=UTF-8" <>
