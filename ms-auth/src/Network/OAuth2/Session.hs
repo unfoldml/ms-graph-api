@@ -177,9 +177,9 @@ tokenUpdateLoop :: MonadIO m =>
                    IdpApplication 'ClientCredentials AzureAD -- ^ client credentials grant only
                 -> Manager
                 -> m (Token OAuth2Token)
-tokenUpdateLoop idp mgr = do
+tokenUpdateLoop ia mgr = do
   t <- newNoToken
-  fetchUpdateToken idp t mgr
+  fetchUpdateToken ia t mgr
   pure t
 
 

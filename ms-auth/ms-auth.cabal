@@ -49,6 +49,8 @@ library
                      , http-types
                      , jwt
                      , microlens >= 0.4
+                     , modern-uri
+                     , req
                      , scientific
                      , scotty
                      , text

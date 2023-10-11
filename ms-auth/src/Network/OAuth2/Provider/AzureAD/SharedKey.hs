@@ -1,8 +1,10 @@
 {-# language OverloadedStrings #-}
 {-# language TupleSections #-}
 {-# options_ghc -Wno-unused-imports #-}
+-- | https://learn.microsoft.com/en-us/rest/api/storageservices/authorize-with-shared-key
 module Network.OAuth2.Provider.AzureAD.SharedKey where
 
+import Data.Bifunctor (first)
 import Data.Function ((&))
 import Data.List (sortOn, intersperse)
 import Data.String (IsString(..))
@@ -11,7 +13,7 @@ import Data.String (IsString(..))
 import qualified Data.ByteString.Base64 as B64 (encodeBase64, decodeBase64)
 -- bytestring
 import qualified Data.ByteString as BS (ByteString)
-import qualified Data.ByteString.Char8 as BS (pack)
+import qualified Data.ByteString.Char8 as BS (pack, unpack)
 import qualified Data.ByteString.Lazy as LBS (ByteString)
 -- cryptohash-sha256
 import qualified Crypto.Hash.SHA256 as H (hmac)
@@ -19,6 +21,10 @@ import qualified Crypto.Hash.SHA256 as H (hmac)
 import Network.HTTP.Simple (Request, Response, httpBS, httpLBS, defaultRequest, setRequestHost, setRequestPath, setRequestSecure, setRequestMethod, setRequestHeader, setRequestBodySource, setRequestBodyLBS, getResponseStatus, getResponseBody)
 -- http-types
 import Network.HTTP.Types (RequestHeaders, Header, HeaderName)
+-- modern-uri
+import Text.URI (mkURI)
+-- req
+import Network.HTTP.Req (runReq, defaultHttpConfig, req, NoReqBody(..), useHttpsURI, GET(..), BsResponse, bsResponse, header, attachHeader, customAuth, Option)
 -- text
 import qualified Data.Text as T (Text, pack, unpack)
 import qualified Data.Text.Encoding as T (encodeUtf8, decodeUtf8)
@@ -27,11 +33,11 @@ import Data.Time.Clock (getCurrentTime)
 import Data.Time.Format (formatTime, defaultTimeLocale)
 
 
--- "Tue, 3 Oct 2023 19:33:08 UTC"
+-- "Tue, 3 Oct 2023 19:33:08 GMT"
 timeString :: IO String
 timeString = f <$> getCurrentTime
   where
-    f = formatTime defaultTimeLocale "%a,%e %b %Y %H:%M:%S %Z"
+    f = formatTime defaultTimeLocale "%a, %e %b %Y %H:%M:%S GMT"
 
 xMsDate :: IO (String, String)
 xMsDate = ("x-ms-date", ) <$> timeString
@@ -40,65 +46,80 @@ canonicalizeHeaders = map canonicalizeHdr . sortOn fst
   where
     canonicalizeHdr (k, v) = T.pack $ k <> ":" <> v
 
-data RESTVerb = GET | POST | PUT deriving (Show)
-
 data ToSignLite = ToSignLite {
-  tslVerb :: RESTVerb -- ^ REST verb
+  tslVerb :: T.Text -- ^ REST verb
   , tslContentType :: T.Text -- ^ MIME content type
   , tslCanHeaders :: [(String, String)]
   , tslOwner :: T.Text -- ^ owner of the storage account
   , tslPath :: T.Text -- ^ resource path
   }
 
-toSign :: ToSignLite -> IO T.Text
+{- |
+PUT\n\ntext/plain; charset=UTF-8\n\nx-ms-date:Sun, 20 Sep 2009 20:36:40 GMT\nx-ms-meta-m1:v1\nx-ms-meta-m2:v2\n/testaccount1/mycontainer/hello.txt
+
+ctzMq410TV3wS7upTBcunJTDLEJwMAZuFPfr0mrrA08=
+
+-}
+
+
+toSign :: ToSignLite -> IO (T.Text, Option scheme)
 toSign (ToSignLite v cty hs o pth) = do
-  xms <- xMsDate
+  xms@(_, datev) <- xMsDate
   let
     hs' = xms : hs
+    dateHeader = header (BS.pack "x-ms-date") (BS.pack datev)
     res = canonicalizedResource o pth
     appendNewline x = x <> "\n"
-    str = mconcat (map appendNewline ([ T.pack (show v), "", cty, ""] <> canonicalizeHeaders hs') <> [res])
-  pure str
+    str = mconcat (map appendNewline ([ v, "", cty, ""] <> canonicalizeHeaders hs') <> [res])
+  print str
+  pure (str, dateHeader)
+
+
 
 signed :: ToSignLite
+       -> String
        -> BS.ByteString -- ^ shared key (from Azure portal)
-       -> IO T.Text
-signed (ToSignLite v ty hs owner pth) key = do
-  t <- toSign (ToSignLite v ty hs owner pth)
+       -> IO (T.Text, Option scheme)
+signed (ToSignLite v ty hs owner pth) acct key = do
+  (t, dateHeader) <- toSign (ToSignLite v ty hs owner pth)
   case B64.decodeBase64 key of
     Left e -> error $ T.unpack e
     Right dkey -> do
       let
         s = H.hmac dkey (T.encodeUtf8 t)
-      pure $ B64.encodeBase64 s
+        s64 = B64.encodeBase64 s
+      pure (T.pack acct <> ":" <> s64, dateHeader)
 
 
-test0 :: IO (Response LBS.ByteString)
-test0 = do
+test0' :: String -> IO BsResponse
+test0' k = do
   let
-    tsl = ToSignLite GET "text/plain" [] "BG-GOT" "/README.md"
-    k = error "the key to the storage account can be found in the Azure Portal"
-  r <- createRequest tsl "weuflowsightsa" "irisity-april4-2023-delivery" k
-  httpLBS r
-
-createRequest :: ToSignLite
-              -> String -- ^ storage account name
-              -> String -- ^ fileshare name
-              -> BS.ByteString -- ^ shared key for the storage account
-              -> IO Request
-createRequest tsl acct share k = do
-  s <- signed tsl k
+    tsl = ToSignLite "GET" "text/plain" [] "BG-GOT" "/aior/README.md"
+    acct = "weuflowsightsa"
+    share = "irisity-april4-2023-delivery"
+    resource = tslPath tsl
+  (s, dateHeader) <- first T.encodeUtf8 <$> signed tsl acct (BS.pack k)
   let
-    meth = BS.pack (show $ tslVerb tsl)
-    host = BS.pack $ "https://" <> acct <> ".file.core.windows.net/" <> share
-    p = T.encodeUtf8 $ tslPath tsl
-  pure (defaultRequest &
-        setRequestMethod meth &
-        setRequestHost host &
-        setRequestPath p &
-        setRequestSecure True &
-        setRequestHeader "Authorization" ["SharedKeyLite " <> BS.pack acct <> ":" <> T.encodeUtf8 s]
-    )
+    host = T.pack ("https://" <> acct <> ".file.core.windows.net/" <> share) <> resource
+    headers = sklAuthHeader s <>
+              header "x-ms-version" "2014-02-14" <>
+              header "Content-Type" "text/plain; charset=UTF-8" <>
+              dateHeader
+    um = useHttpsURI =<< mkURI host
+  putStrLn $ unwords ["Auth header:", BS.unpack s]
+  case um of
+    Just (u, _) ->
+      runReq defaultHttpConfig $ req GET u NoReqBody bsResponse headers
+    Nothing -> error $ unwords ["cannot decode", T.unpack host, "as an URI"]
+
+
+
+sklAuthHeader :: BS.ByteString -> Option scheme
+sklAuthHeader token =
+  customAuth
+    (pure . attachHeader "Authorization" ("SharedKeyLite " <> token))
+
+
 
 -- | Shared Key Lite authentication for Storage (Blob, Queue and File services)
 --- https://learn.microsoft.com/en-us/rest/api/storageservices/authorize-with-shared-key#blob-queue-and-file-services-shared-key-lite-authorization
