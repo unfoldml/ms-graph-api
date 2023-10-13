@@ -50,7 +50,7 @@ data ToSignLite = ToSignLite {
   tslVerb :: T.Text -- ^ REST verb
   , tslContentType :: T.Text -- ^ MIME content type
   , tslCanHeaders :: [(String, String)]
-  , tslOwner :: T.Text -- ^ owner of the storage account
+  -- , tslOwner :: T.Text -- ^ owner of the storage account
   , tslPath :: T.Text -- ^ resource path
   }
 
@@ -62,29 +62,37 @@ ctzMq410TV3wS7upTBcunJTDLEJwMAZuFPfr0mrrA08=
 -}
 
 
-toSign :: ToSignLite -> String -> String -> IO (T.Text, Option scheme)
-toSign (ToSignLite v cty hs o pth) acct share = do
-  xms@(_, datev) <- xMsDate
-  let
-    hs' = xms : hs
-    dateHeader = header (BS.pack "x-ms-date") (BS.pack datev)
-    -- res = canonicalizedResource o pth
-    res = "/" <> T.pack acct <> "/" <> T.pack share <> "/" <> pth 
-    appendNewline x = x <> "\n"
-    str = mconcat (map appendNewline ([ v, "", cty, ""] <> canonicalizeHeaders hs') <> [res])
-  print str
-  pure (str, dateHeader)
+-- toSign :: ToSignLite -> String -> String -> IO (T.Text, Option scheme)
+-- toSign (ToSignLite v cty hs pth) acct share = do
+--   xms@(_, datev) <- xMsDate
+--   let
+--     hs' = xms : hs
+--     dateHeader = header (BS.pack "x-ms-date") (BS.pack datev)
+--     -- res = canonicalizedResource o pth
+--     res = "/" <> T.pack acct <> "/" <> T.pack share <> "/" <> pth
+--     appendNewline x = x <> "\n"
+--     str = mconcat (map appendNewline ([ v, "", cty, ""] <> canonicalizeHeaders hs') <> [res])
+--   print str
+--   pure (str, dateHeader)
 
 
 
 
 signed :: ToSignLite
-       -> String
-       -> String
+       -> String -- ^ storage account name
+       -> String -- ^ file share
        -> BS.ByteString -- ^ shared key (from Azure portal)
        -> IO (T.Text, Option scheme)
-signed (ToSignLite v ty hs owner pth) acct share key = do
-  (t, dateHeader) <- toSign (ToSignLite v ty hs owner pth) acct share
+signed (ToSignLite v cty hs pth) acct share key = do
+  -- (t, dateHeader) <- toSign (ToSignLite v ty hs pth) acct share
+  xms@(_, datev) <- xMsDate
+  let
+    hs' = xms : hs
+    dateHeader = header (BS.pack "x-ms-date") (BS.pack datev)
+    -- res = canonicalizedResource o pth
+    res = "/" <> T.pack acct <> "/" <> T.pack share <> "/" <> pth
+    appendNewline x = x <> "\n"
+    t = mconcat (map appendNewline ([ v, "", cty, ""] <> canonicalizeHeaders hs') <> [res])
   case B64.decodeBase64 key of
     Left e -> error $ T.unpack e
     Right dkey -> do
@@ -94,10 +102,11 @@ signed (ToSignLite v ty hs owner pth) acct share key = do
       pure (T.pack acct <> ":" <> s64, dateHeader)
 
 
-test0' :: String -> IO BsResponse
-test0' k = do
+getTest0 :: String -> IO BsResponse
+getTest0 k = do
   let
-    tsl = ToSignLite "GET" "text/plain; charset=UTF-8" [("x-ms-version", "2014-02-14")] "BG-GOT" "aior/README.md"
+    -- tsl = ToSignLite "GET" "text/plain; charset=UTF-8" [("x-ms-version", "2014-02-14")] "aior/README.md"
+    tsl = ToSignLite "GET" "" [("x-ms-version", "2014-02-14")] "aior/README.md"
     acct = "weuflowsightsa"
     share = "irisity-april4-2023-delivery"
     resource = tslPath tsl
@@ -106,15 +115,16 @@ test0' k = do
     host = T.pack ("https://" <> acct <> ".file.core.windows.net/" <> share) <> "/" <> resource
     headers = sklAuthHeader s <>
               header "x-ms-version" "2014-02-14" <>
-              header "Content-Type" "text/plain; charset=UTF-8" <>
+              -- header "Content-Type" "text/plain; charset=UTF-8" <>
               dateHeader
     um = useHttpsURI =<< mkURI host
-  putStrLn $ unwords ["Auth header:", BS.unpack s]
+  -- putStrLn $ unwords ["Auth header:", BS.unpack s]
   case um of
     Just (u, _) ->
       runReq defaultHttpConfig $ req GET u NoReqBody bsResponse headers
     Nothing -> error $ unwords ["cannot decode", T.unpack host, "as an URI"]
 
+-- putTest0 k = do
 
 
 sklAuthHeader :: BS.ByteString -> Option scheme
