@@ -31,11 +31,14 @@ resolver:
 #   - wai
 packages:
 - .
+- ../ms-auth
+
 # Dependency packages to be pulled from upstream that are not in the resolver.
 # These entries can reference officially published versions as well as
 # forks / in-progress versions pinned to a git hash. For extra:
 #
 extra-deps:
+- dotenv-micro-0.1.0.1@sha256:7cc4d8ad8452b2b8fd1e4c0b1d3ee69ceebb73c98f1697d1dd647a1e820afdf5,1520
 - validation-micro-1.0.0.0
 - selective-0.6
 

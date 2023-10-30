@@ -56,7 +56,7 @@ import qualified Data.ByteString.Lazy as LBS (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as LBS8 (pack, unpack, putStrLn)
 -- http-client
 import Network.HTTP.Client (Manager)
-import qualified Network.HTTP.Client as L (RequestBody(..))
+import qualified Network.HTTP.Client as L (RequestBody(..), Response(..))
 -- http-client-tls
 import Network.HTTP.Client.TLS (newTlsManager)
 -- modern-uri
@@ -67,9 +67,12 @@ import MSAuth (OAuth2Token(..), AccessToken(..), ExchangeToken(..), RefreshToken
 import Network.HTTP.Req (Req, runReq, HttpBody(..), HttpConfig(..), HttpException(..), defaultHttpConfig, req, Option, (=:), GET(..), POST(..), PUT(..), DELETE(..), Url, Scheme(..), urlQ, useHttpsURI, https, (/:), ReqBodyJson(..), NoReqBody(..), oAuth2Bearer, HttpResponse(..), jsonResponse, JsonResponse, lbsResponse, LbsResponse, bsResponse, BsResponse, responseBody, responseHeader)
 -- text
 import Data.Text (Text, pack, unpack)
+-- transformers
+import Control.Monad.Trans.Reader (ReaderT)
 -- unliftio
 import UnliftIO (MonadUnliftIO(..))
 import UnliftIO.Exception (try)
+
 
 -- | URL parameters
 (==:) :: Text -- ^ key

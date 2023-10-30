@@ -8,6 +8,8 @@ and this project adheres to the
 
 ## Unreleased
 
+- get rid of `hoauth` in favor of `ms-auth`
+
 ## 0.11.0.0
 
 .Users.Group
