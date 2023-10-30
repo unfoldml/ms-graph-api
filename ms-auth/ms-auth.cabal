@@ -20,6 +20,7 @@ library
   hs-source-dirs:      src
   exposed-modules:     MSAuth
                        Network.OAuth2.Provider.AzureAD
+
   other-modules:       Network.OAuth2.Provider.AzureAD.SharedKey
                        Network.OAuth.OAuth2
                        Network.OAuth.OAuth2.AuthorizationRequest

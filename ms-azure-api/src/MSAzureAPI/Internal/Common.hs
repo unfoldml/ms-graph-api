@@ -59,11 +59,10 @@ import Network.HTTP.Client (Manager)
 import qualified Network.HTTP.Client as L (RequestBody(..))
 -- http-client-tls
 import Network.HTTP.Client.TLS (newTlsManager)
--- hoauth2
-import Network.OAuth.OAuth2 (OAuth2Token(..))
-import Network.OAuth.OAuth2.Internal (AccessToken(..), ExchangeToken(..), RefreshToken(..), OAuth2Error, IdToken(..))
 -- modern-uri
 import Text.URI (URI, mkURI)
+-- ms-auth
+import MSAuth (OAuth2Token(..), AccessToken(..), ExchangeToken(..), RefreshToken(..), OAuth2Error, IdToken(..))
 -- req
 import Network.HTTP.Req (Req, runReq, HttpBody(..), HttpConfig(..), HttpException(..), defaultHttpConfig, req, Option, (=:), GET(..), POST(..), PUT(..), DELETE(..), Url, Scheme(..), urlQ, useHttpsURI, https, (/:), ReqBodyJson(..), NoReqBody(..), oAuth2Bearer, HttpResponse(..), jsonResponse, JsonResponse, lbsResponse, LbsResponse, bsResponse, BsResponse, responseBody)
 -- text

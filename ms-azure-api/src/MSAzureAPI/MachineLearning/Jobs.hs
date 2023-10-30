@@ -20,9 +20,8 @@ import qualified Data.Aeson as A (ToJSON(..), genericToEncoding, FromJSON(..), g
 import qualified Data.ByteString as BS (ByteString)
 import qualified Data.ByteString.Char8 as BS8 (pack, unpack)
 import qualified Data.ByteString.Lazy as LBS (ByteString)
--- hoauth2
--- import Network.OAuth.OAuth2 (OAuth2Token(..))
-import Network.OAuth.OAuth2.Internal (AccessToken(..))
+-- ms-auth
+import MSAuth (AccessToken(..))
 -- req
 import Network.HTTP.Req (Req, Url, Option, Scheme(..), header, (=:))
 -- text

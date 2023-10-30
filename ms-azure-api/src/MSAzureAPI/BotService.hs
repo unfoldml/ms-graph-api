@@ -24,8 +24,8 @@ import GHC.Generics (Generic(..))
 
 -- aeson
 import qualified Data.Aeson as A (ToJSON(..), genericToJSON, object, (.=), encode, ToJSONKey(..), FromJSON(..), genericParseJSON, withObject, withText, Value(..))
--- hoauth2
-import Network.OAuth.OAuth2.Internal (AccessToken(..))
+-- ms-auth
+import MSAuth (AccessToken(..))
 
 -- req
 import Network.HTTP.Req (HttpException, runReq, HttpConfig, defaultHttpConfig, Req, Url, Option, Scheme(..), header, (=:))

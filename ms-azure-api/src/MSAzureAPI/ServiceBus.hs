@@ -8,9 +8,8 @@ import GHC.Generics (Generic(..))
 import qualified Data.Aeson as A (ToJSON(..), genericToJSON, object, (.=), ToJSONKey(..), FromJSON(..), genericParseJSON)
 -- containers
 import qualified Data.Map as M (Map, singleton, fromList)
--- hoauth2
-import Network.OAuth.OAuth2.Internal (AccessToken(..))
-
+-- ms-auth
+import MSAuth (AccessToken(..))
 -- req
 import Network.HTTP.Req (HttpException, runReq, HttpConfig, defaultHttpConfig, Req, Url, Option, Scheme(..), header, (=:))
 -- text

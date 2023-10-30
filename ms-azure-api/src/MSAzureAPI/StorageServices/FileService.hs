@@ -33,9 +33,8 @@ import qualified Data.ByteString.Lazy as LBS (ByteString)
 -- conduit
 import qualified Data.Conduit as C (ConduitT, yield, runConduitRes)
 import Data.Conduit ((.|))
--- hoauth2
--- import Network.OAuth.OAuth2 (OAuth2Token(..))
-import Network.OAuth.OAuth2.Internal (AccessToken(..))
+-- ms-auth
+import MSAuth (AccessToken(..))
 -- req
 import Network.HTTP.Req (HttpException, runReq, HttpConfig, defaultHttpConfig, Req, Url, Option, Scheme(..), header, (=:))
 -- text

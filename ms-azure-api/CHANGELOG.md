@@ -8,15 +8,20 @@ and this project adheres to the
 
 ## Unreleased
 
+get rid of `hoauth` dependency in favor of `ms-auth`.
+
+.CostManagement
+.MachineLearning.OnlineEndpoints
+
 ## 0.6.0.0
 
-MSAzureAPI.BotService
+.BotService
 
 ## 0.5.0.0
 
 ToJSON instance of Location renders the full name e.g. "West Europe"
 
-MSAzureAPI.ServiceBus
+.ServiceBus
 
 add 'http-client' as an explicit dependency
 
@@ -31,22 +36,22 @@ TLS support
 
 ## 0.3.1.0
 
-MSAzureAPI.StorageServices.FileService : add listDirectoriesAndFilesC (stream all response pages from listDirectoriesAndFiles)
+.StorageServices.FileService : add listDirectoriesAndFilesC (stream all response pages from listDirectoriesAndFiles)
 
 ## 0.3.0.0
 
 add 'conduit' as a dependency
 
-MSAzureAPI.MachineLearning.Compute
-MSAzureAPI.MachineLearning.Jobs
-MSAzureAPI.MachineLearning.Usages
+.MachineLearning.Compute
+.MachineLearning.Jobs
+.MachineLearning.Usages
 
 * breaking changes:
-MSAzureAPI.StorageServices.FileService. listDirectoriesAndFiles now has an extra parameter to support paginated results, as well as a more informative return type.
+.StorageServices.FileService. listDirectoriesAndFiles now has an extra parameter to support paginated results, as well as a more informative return type.
 
 ## 0.2.0.0
 
-MSAzureAPI.StorageServices.FileService : add listDirectoriesAndFiles
+.StorageServices.FileService : add listDirectoriesAndFiles
 
 Add XML support via `xeno` and `xmlbf` to parse `listDirectoriesAndFiles` response bodies
 

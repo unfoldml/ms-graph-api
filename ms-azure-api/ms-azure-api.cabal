@@ -1,5 +1,5 @@
 name:                ms-azure-api
-version:             0.6.0.1
+version:             0.7.0.0
 synopsis:            Microsoft Azure API
 description:         Bindings to the Microsoft Azure API
 homepage:            https://github.com/unfoldml/ms-graph-api
@@ -22,6 +22,7 @@ library
                        MSAzureAPI.BotService
                        MSAzureAPI.MachineLearning.Compute
                        MSAzureAPI.MachineLearning.Jobs
+                       MSAzureAPI.MachineLearning.OnlineEndpoints
                        MSAzureAPI.MachineLearning.Usages
                        MSAzureAPI.ServiceBus
                        MSAzureAPI.StorageServices
@@ -33,11 +34,12 @@ library
                      , conduit
                      , containers
                      , exceptions >= 0.10.4
-                     , hoauth2 == 2.6.0
+                     -- , hoauth2 == 2.6.0
                      , http-client
                      , http-client-tls >= 0.3.6.1
                      , http-types
                      , modern-uri
+                     , ms-auth >= 0.5
                      , req
                      , scientific
                      , text

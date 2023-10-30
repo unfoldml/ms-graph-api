@@ -41,6 +41,7 @@ timeString = f <$> getCurrentTime
 
 xMsDate :: IO (String, String)
 xMsDate = ("x-ms-date", ) <$> timeString
+
 canonicalizeHeaders :: [(String, String)] -> [T.Text]
 canonicalizeHeaders = map canonicalizeHdr . sortOn fst
   where
@@ -50,7 +51,6 @@ data ToSignLite = ToSignLite {
   tslVerb :: T.Text -- ^ REST verb
   , tslContentType :: T.Text -- ^ MIME content type
   , tslCanHeaders :: [(String, String)]
-  -- , tslOwner :: T.Text -- ^ owner of the storage account
   , tslPath :: T.Text -- ^ resource path
   }
 
@@ -62,37 +62,19 @@ ctzMq410TV3wS7upTBcunJTDLEJwMAZuFPfr0mrrA08=
 -}
 
 
--- toSign :: ToSignLite -> String -> String -> IO (T.Text, Option scheme)
--- toSign (ToSignLite v cty hs pth) acct share = do
---   xms@(_, datev) <- xMsDate
---   let
---     hs' = xms : hs
---     dateHeader = header (BS.pack "x-ms-date") (BS.pack datev)
---     -- res = canonicalizedResource o pth
---     res = "/" <> T.pack acct <> "/" <> T.pack share <> "/" <> pth
---     appendNewline x = x <> "\n"
---     str = mconcat (map appendNewline ([ v, "", cty, ""] <> canonicalizeHeaders hs') <> [res])
---   print str
---   pure (str, dateHeader)
-
-
-
-
 signed :: ToSignLite
        -> String -- ^ storage account name
        -> String -- ^ file share
        -> BS.ByteString -- ^ shared key (from Azure portal)
        -> IO (T.Text, Option scheme)
 signed (ToSignLite v cty hs pth) acct share key = do
-  -- (t, dateHeader) <- toSign (ToSignLite v ty hs pth) acct share
-  xms@(_, datev) <- xMsDate
+  xdate@(_, datev) <- xMsDate
   let
-    hs' = xms : hs
+    hs' = canonicalizeHeaders (xdate : hs) -- ^ https://learn.microsoft.com/en-us/rest/api/storageservices/authorize-with-shared-key#constructing-the-canonicalized-headers-string
     dateHeader = header (BS.pack "x-ms-date") (BS.pack datev)
-    -- res = canonicalizedResource o pth
     res = "/" <> T.pack acct <> "/" <> T.pack share <> "/" <> pth
     appendNewline x = x <> "\n"
-    t = mconcat (map appendNewline ([ v, "", cty, ""] <> canonicalizeHeaders hs') <> [res])
+    t = mconcat (map appendNewline ([ v, "", cty, ""] <> hs') <> [res])
   case B64.decodeBase64 key of
     Left e -> error $ T.unpack e
     Right dkey -> do
@@ -105,7 +87,6 @@ signed (ToSignLite v cty hs pth) acct share key = do
 getTest0 :: String -> IO BsResponse
 getTest0 k = do
   let
-    -- tsl = ToSignLite "GET" "text/plain; charset=UTF-8" [("x-ms-version", "2014-02-14")] "aior/README.md"
     tsl = ToSignLite "GET" "" [("x-ms-version", "2014-02-14")] "aior/README.md"
     acct = "weuflowsightsa"
     share = "irisity-april4-2023-delivery"

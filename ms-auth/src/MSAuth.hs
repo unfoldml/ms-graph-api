@@ -25,6 +25,10 @@ module MSAuth (
   , withAADUser
   , Scotty
   , Action
+  -- * OAuth types
+  , OAuth2Token(..), AccessToken(..), ExchangeToken(..), RefreshToken(..), OAuth2Error(..), IdToken(..)
   ) where
 
 import Network.OAuth2.Session
+
+import Network.OAuth.OAuth2.Internal (OAuth2Token(..), AccessToken(..), ExchangeToken(..), RefreshToken(..), OAuth2Error(..), IdToken(..))
