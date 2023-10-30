@@ -45,6 +45,13 @@ generateCostDetailsReport rid = MSA.post MSA.APManagement [
   , "generateCostDetailsReport"
   ] ("api-version" MSA.==: "2023-08-01")
 
+data CDRQueryResult = CDRQResult {
+  cdrqrLocation :: Text
+                                 } deriving (Show, Generic)
+instance A.FromJSON CDRQueryResult where
+  parseJSON = A.genericParseJSON (MSA.aesonOptions "cdrqr")
+
+
 data CDROptions = CDROptions {
   cdrTimePeriod :: CDRTimePeriod
                        } deriving (Show, Generic)
