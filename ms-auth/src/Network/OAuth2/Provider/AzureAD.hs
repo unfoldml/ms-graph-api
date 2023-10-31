@@ -25,6 +25,8 @@ module Network.OAuth2.Provider.AzureAD (
     , azureOAuthADApp
     -- * Exceptions
     , AzureADException(..)
+    -- * Types
+    , Idp(..), IdpApplication(..)
     ) where
 
 -- import Data.String (IsString(..))
