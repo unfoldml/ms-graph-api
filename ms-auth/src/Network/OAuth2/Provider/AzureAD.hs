@@ -93,6 +93,8 @@ instance Show AzureADException where
 --
 --
 -- Throws 'AzureADException' if @AZURE_CLIENT_ID@ and/or @AZURE_CLIENT_SECRET@ credentials are not found in the environment
+--
+-- for scopes refer to https://learn.microsoft.com/EN-US/azure/active-directory/develop/scopes-oidc#openid-connect-scopes 
 azureADApp :: MonadIO m =>
               TL.Text -- ^ application name
            -> [Scope] -- ^ scopes
@@ -100,21 +102,12 @@ azureADApp :: MonadIO m =>
 azureADApp appname scopes = do
   clid <- envClientId
   sec <- envClientSecret
-  pure $ defaultAzureADApp{
-    idpAppName = appname
-    , idpAppClientId = clid
+  pure $ ClientCredentialsIDPAppConfig
+    { idpAppClientId = clid
     , idpAppClientSecret = sec
     , idpAppScope = Set.fromList (scopes <> ["offline_access"])
-    }
-
-defaultAzureADApp :: IdpApplication 'ClientCredentials AzureAD
-defaultAzureADApp =
-  ClientCredentialsIDPAppConfig
-    { idpAppClientId = ""
-    , idpAppClientSecret = ""
-    , idpAppScope = Set.fromList ["offline_access"] -- https://learn.microsoft.com/EN-US/azure/active-directory/develop/scopes-oidc#openid-connect-scopes
     , idpAppTokenRequestExtraParams = Map.empty
-    , idpAppName = "default-azure-app" --
+    , idpAppName = appname
     , idp = defaultAzureADIdp
     }
 

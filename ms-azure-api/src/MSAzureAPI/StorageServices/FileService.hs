@@ -203,7 +203,7 @@ listDirectoriesP = do
     pure (DirItems es nm)
 
 enumResultsIgnore :: XB.Parser ()
-enumResultsIgnore = ignoreList ["Marker", "Prefix", "MaxResults", "DirectoryId"] 
+enumResultsIgnore = ignoreList ["Marker", "Prefix", "MaxResults", "DirectoryId"]
 
 -- marker :: XB.Parser (Maybe Text)
 -- marker = optional (TL.toStrict <$> tag "Marker" anystring)
