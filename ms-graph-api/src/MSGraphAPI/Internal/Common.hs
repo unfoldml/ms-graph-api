@@ -42,9 +42,8 @@ import qualified Data.ByteString as BS (ByteString)
 import qualified Data.ByteString.Char8 as BS8 (pack, unpack)
 import qualified Data.ByteString.Lazy as LBS (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as LBS8 (pack, unpack, putStrLn)
--- hoauth2
-import Network.OAuth.OAuth2 (OAuth2Token(..))
-import Network.OAuth.OAuth2.Internal (AccessToken(..), ExchangeToken(..), RefreshToken(..), OAuth2Error, IdToken(..))
+-- ms-auth
+import MSAuth (OAuth2Token(..), AccessToken(..), ExchangeToken(..), RefreshToken(..), OAuth2Error, IdToken(..))
 -- http-client
 import Network.HTTP.Client (Manager)
 -- http-client-tls

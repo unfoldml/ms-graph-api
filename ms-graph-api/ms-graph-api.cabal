@@ -35,7 +35,7 @@ library
                      , http-client-tls >= 0.3
                      , http-types
                      , modern-uri
-                     , ms-auth
+                     , ms-auth >= 0.5
                      , req
                      , scientific
                      , text

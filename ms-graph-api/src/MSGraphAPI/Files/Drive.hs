@@ -14,8 +14,8 @@ import qualified Data.Aeson as A (ToJSON(..), FromJSON(..), genericParseJSON)
 -- import qualified Data.Aeson.Types as A (Parser)
 -- bytestring
 -- import qualified Data.ByteString.Lazy as LBS (ByteString)
--- hoauth
-import Network.OAuth.OAuth2.Internal (AccessToken(..))
+-- ms-auth
+import MSAuth (AccessToken(..))
 -- req
 import Network.HTTP.Req (Req)
 -- text
