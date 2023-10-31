@@ -16,8 +16,6 @@ extra-deps:
 - validation-micro-1.0.0.0
 - dotenv-micro-0.1.0.1
 
-allow-newer: true
-
 # extra-deps:
 # - acme-missiles-0.3
 # - git: https://github.com/commercialhaskell/stack.git

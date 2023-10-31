@@ -47,12 +47,13 @@ import Data.Time.LocalTime (getZonedTime)
 -- xeno
 import qualified Xeno.DOM.Robust as X (Node, Content(..), name, contents, children)
 -- xmlbf-xeno
-import qualified Xmlbf.Xeno as XB (fromRawXml)
--- xmlbf
-import qualified Xmlbf as XB (Parser, runParser, pElement, pText)
+
+
+
 
 import MSAzureAPI.Internal.Common (run, APIPlane(..), (==:), get, getBs, post, getLbs, tryReq)
-
+import qualified Xmlbf as XB (Parser, runParser, pElement, pText)
+import qualified Xmlbf.Xeno as XB (fromRawXml)
 
 
 

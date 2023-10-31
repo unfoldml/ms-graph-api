@@ -28,12 +28,16 @@ library
                        MSAzureAPI.StorageServices
                        MSAzureAPI.StorageServices.FileService
   other-modules:       MSAzureAPI.Internal.Common
+                       Xmlbf
+                       Xmlbf.Xeno
   build-depends:       aeson
                      , base >= 4.7 && < 5
                      , bytestring
                      , conduit
                      , containers
+                     , deepseq
                      , exceptions >= 0.10.4
+                     , html-entities >= 1.1
                      , http-client
                      , http-client-tls >= 0.3.6.1
                      , http-types
@@ -41,13 +45,13 @@ library
                      , ms-auth >= 0.5
                      , req
                      , scientific
+                     , selective
                      , text
                      , time >= 1.8
                      , transformers >= 0.5
                      , unliftio
+                     , unordered-containers >= 0.2
                      , xeno
-                     , xmlbf < 0.7
-                     , xmlbf-xeno
   ghc-options:         -Wall
                        -Wcompat
                        -Wno-unused-imports

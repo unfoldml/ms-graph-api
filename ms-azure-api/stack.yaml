@@ -17,7 +17,6 @@ packages:
 extra-deps:
 - dotenv-micro-0.1.0.1@sha256:7cc4d8ad8452b2b8fd1e4c0b1d3ee69ceebb73c98f1697d1dd647a1e820afdf5,1520
 - validation-micro-1.0.0.0@sha256:fc195f4ddca51bd5f0521e2fd9c3ad448a5066ec24c49a3401f7c477ca6ea807,2541
-- xmlbf-0.6.2@sha256:942a17883eb54125d02109665e011f485dafe08235383d4e00cd0957aef3b9bf,1535
 
 
 # Override default flag values for local packages and extra-deps
