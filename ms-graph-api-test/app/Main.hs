@@ -13,13 +13,13 @@ import qualified Data.Aeson.Encode.Pretty as A (encodePretty)
 import qualified Data.ByteString.Lazy.Char8 as LBS (putStrLn, pack)
 -- dotenv-micro
 import DotEnv.Micro (loadDotEnv)
--- hoauth2
-import Network.OAuth.OAuth2 (OAuth2Token(..))
-import Network.OAuth2.Experiment (IdpApplication, GrantTypeFlow(..))
 -- http-client
 import Network.HTTP.Client (Manager, newManager)
 -- http-client-tls
 import Network.HTTP.Client.TLS (tlsManagerSettings)
+-- ms-auth
+import MSAuth (OAuth2Token(..))
+import Network.OAuth2.Provider.AzureAD (IdpApplication, GrantTypeFlow(..))
 -- req
 import Network.HTTP.Req (HttpConfig, runReq, defaultHttpConfig, httpConfigAltManager)
 -- scotty

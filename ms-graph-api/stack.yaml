@@ -43,7 +43,7 @@ extra-deps:
 - validation-micro-1.0.0.0
 - selective-0.6
 
-# allow-newer: true
+allow-newer: true
 
 
 # - acme-missiles-0.3
