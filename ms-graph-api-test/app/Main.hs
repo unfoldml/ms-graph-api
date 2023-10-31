@@ -19,7 +19,7 @@ import Network.HTTP.Client (Manager, newManager)
 import Network.HTTP.Client.TLS (tlsManagerSettings)
 -- ms-auth
 import MSAuth (OAuth2Token(..))
-import Network.OAuth2.Provider.AzureAD (IdpApplication, GrantTypeFlow(..))
+import Network.OAuth2.Provider.AzureAD (OAuthCfg(..), azureOAuthADApp, AzureAD, IdpApplication, GrantTypeFlow(..))
 -- req
 import Network.HTTP.Req (HttpConfig, runReq, defaultHttpConfig, httpConfigAltManager)
 -- scotty
@@ -42,7 +42,7 @@ import qualified MSGraphAPI.Files.Drive as MSD (Drive(..), listDrivesGroup)
 import qualified MSGraphAPI.Files.DriveItem as MSDI (listRootChildrenMe)
 import qualified MSGraphAPI.Users.Group as MSGU (Group(..), listMeJoinedTeams, listGroupsDriveItems)
 import qualified MSGraphAPI.Users.User as MSG (getMe, User(..))
-import Network.OAuth2.Provider.AzureAD (OAuthCfg(..), azureOAuthADApp, AzureAD)
+
 import MSAuth (Tokens, newTokens, tokensToList, withAADUser, loginEndpoint, replyEndpoint, UserSub, Scotty, Action)
 
 

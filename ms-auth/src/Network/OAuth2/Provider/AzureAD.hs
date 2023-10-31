@@ -27,6 +27,7 @@ module Network.OAuth2.Provider.AzureAD (
     , AzureADException(..)
     -- * Types
     , Idp(..), IdpApplication(..)
+    , GrantTypeFlow(..)
     ) where
 
 -- import Data.String (IsString(..))
