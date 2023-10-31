@@ -39,6 +39,7 @@ packages:
 #
 extra-deps:
 - dotenv-micro-0.1.0.1@sha256:7cc4d8ad8452b2b8fd1e4c0b1d3ee69ceebb73c98f1697d1dd647a1e820afdf5,1520
+- xmlbf-0.6.2@sha256:942a17883eb54125d02109665e011f485dafe08235383d4e00cd0957aef3b9bf,1535
 - validation-micro-1.0.0.0
 - selective-0.6
 
